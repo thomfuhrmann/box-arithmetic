@@ -1,1 +1,0 @@
-impl chumsky::Parser<'_, &[box_core::parser::Token], box_core::parser::Expr, chumsky::extra::Full<chumsky::error::Simple<'_, box_core::parser::Token>, (), ()>>
