@@ -1,0 +1,11 @@
+/home/thomas/Projects/rust/box-arithmetic/target/debug/deps/wee_alloc-18d1905f39d52918.d: /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/lib.rs /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/extra_assert.rs /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/const_init.rs /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/neighbors.rs /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/size_classes.rs /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/imp_unix.rs /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/size_classes_init.rs
+
+/home/thomas/Projects/rust/box-arithmetic/target/debug/deps/libwee_alloc-18d1905f39d52918.rmeta: /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/lib.rs /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/extra_assert.rs /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/const_init.rs /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/neighbors.rs /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/size_classes.rs /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/imp_unix.rs /home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/size_classes_init.rs
+
+/home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/lib.rs:
+/home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/extra_assert.rs:
+/home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/const_init.rs:
+/home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/neighbors.rs:
+/home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/size_classes.rs:
+/home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/imp_unix.rs:
+/home/thomas/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wee_alloc-0.4.5/src/size_classes_init.rs:
