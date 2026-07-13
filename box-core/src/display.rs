@@ -1,9 +1,27 @@
 use std::fmt::Display;
 
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use colored::Colorize;
+
 use malachite::Natural;
 
 use crate::{AnyBox, BoxKind, BoxType, BoxValue, BoxVariant};
+
+#[cfg(not(all(target_arch = "x86_64", target_os = "linux")))]
+trait Colorize {
+    fn red(&self) -> String;
+    fn black(&self) -> String;
+}
+
+#[cfg(not(all(target_arch = "x86_64", target_os = "linux")))]
+impl Colorize for str {
+    fn red(&self) -> String {
+        self.to_string()
+    }
+    fn black(&self) -> String {
+        self.to_string()
+    }
+}
 
 /// Helper function to display multiplicities as subscripts
 fn to_subscript(num: Natural) -> String {

@@ -17,7 +17,6 @@ workspace.resolver = "3"
 [workspace.dependencies]
 chumsky = "0.13.0"
 colored = "3.1.1"
-crossterm = "0.29.0"
 logos = "0.16.1"
 malachite = "0.9.1"
 rapidhash = "4.4.1"
