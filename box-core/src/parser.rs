@@ -4,6 +4,8 @@ use chumsky::prelude::*;
 use logos::{Lexer, Logos};
 use malachite::Natural;
 
+// TODO: parsing logic for colored tokens: <red>_</red>
+
 fn parse_subscript(lex: &mut Lexer<Token>) -> Option<Natural> {
     let slice = lex.slice();
     let mut result = Natural::from(0_u32);
@@ -35,6 +37,8 @@ fn parse_subscript(lex: &mut Lexer<Token>) -> Option<Natural> {
 #[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(skip r"[ \t\n\f]+")]
 pub enum Token {
+    #[token("□")]
+    Empty,
     // Match numbers
     #[regex(r"[0-9]+", |lex|lex.slice().parse())]
     Number(Natural),
@@ -49,6 +53,10 @@ pub enum Token {
     Multiply,
     #[token("/")]
     Divide,
+    #[token("∩")]
+    Intersection,
+    #[token("∪")]
+    Union,
     #[token("^")]
     Caret,
     #[token("(")]
@@ -63,18 +71,19 @@ pub enum Token {
     OpenList,
     #[token("⌉")]
     CloseList,
+    #[token("{")]
+    OpenSet,
+    #[token("}")]
+    CloseSet,
     #[token(",")]
     Comma,
     #[regex(r"[₀₁₂₃₄₅₆₇₈₉]+", parse_subscript)]
     Subscript(Natural),
-    #[token("□")]
-    BlackEmpty,
-    #[token("▣")]
-    RedEmpty,
 }
 
 #[derive(Debug, Clone)]
 pub enum Expr {
+    Empty,
     Num(Natural),
     Var(String),
     Neg(Box<Expr>),
@@ -82,15 +91,16 @@ pub enum Expr {
     Sub(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
     Div(Box<Expr>, Box<Expr>),
+    Intersection(Box<Expr>, Box<Expr>),
+    Union(Box<Expr>, Box<Expr>),
     Unixel(Box<Expr>),
     Vexel(Vec<Expr>),
     Pixel(Box<Expr>, Box<Expr>),
     Maxel(Vec<Expr>),
     List(Vec<Expr>),
     Box(Vec<Expr>),
+    Set(Vec<Expr>),
     Subscript(Natural, Box<Expr>),
-    BlackEmpty,
-    RedEmpty,
 }
 
 fn subscript<'a>() -> impl Parser<'a, &'a [Token], Natural, extra::Err<Simple<'a, Token>>> + Clone {
@@ -191,46 +201,63 @@ where
         .map(Expr::List)
 }
 
+fn set_parser<'a, P>(
+    parser: P,
+) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
+where
+    P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
+{
+    subscript()
+        .or_not()
+        .then(parser)
+        .map(|(sub, expr)| match sub {
+            Some(num) => Expr::Subscript(num, Box::new(expr)),
+            None => expr,
+        })
+        .separated_by(just(Token::Comma))
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::OpenSet), just(Token::CloseSet))
+        .map(Expr::Set)
+}
+
 pub fn parser<'src>()
 -> impl Parser<'src, &'src [Token], Expr, chumsky::extra::Err<chumsky::error::Simple<'src, Token>>>
 {
     recursive(|p| {
-        let atom = {
-            let number = select! {
-                Token::Number(n) => Expr::Num(n),
-            };
-
-            let empty_box = select! {
-                Token::BlackEmpty => Expr::BlackEmpty,
-                Token::RedEmpty => Expr::RedEmpty
-            };
-
-            let var = select! { Token::Var(name) => Expr::Var(name) };
-
-            let parenthesized = p
-                .clone()
-                .delimited_by(just(Token::OpenGroup), just(Token::CloseGroup));
-
-            let base_atom = number
-                .or(empty_box)
-                .or(var)
-                .or(vexel_parser(p.clone()))
-                .or(maxel_parser(p.clone()))
-                .or(list_parser(p.clone()))
-                .or(box_parser(p.clone()))
-                .or(parenthesized);
-
-            just(Token::Minus)
-                .repeated()
-                .collect::<Vec<_>>()
-                .then(base_atom)
-                .map(|(minuses, mut expr)| {
-                    for _ in minuses {
-                        expr = Expr::Neg(Box::new(expr));
-                    }
-                    expr
-                })
+        let number = select! {
+            Token::Number(n) => Expr::Num(n),
         };
+
+        let empty_box = select! {
+            Token::Empty => Expr::Empty,
+        };
+
+        let var = select! { Token::Var(name) => Expr::Var(name) };
+
+        let parenthesized = p
+            .clone()
+            .delimited_by(just(Token::OpenGroup), just(Token::CloseGroup));
+
+        let base_atom = number
+            .or(empty_box)
+            .or(var)
+            .or(vexel_parser(p.clone()))
+            .or(maxel_parser(p.clone()))
+            .or(list_parser(p.clone()))
+            .or(box_parser(p.clone()))
+            .or(set_parser(p.clone()))
+            .or(parenthesized);
+
+        let atom = just(Token::Minus)
+            .repeated()
+            .collect::<Vec<_>>()
+            .then(base_atom)
+            .map(|(minuses, mut expr)| {
+                for _ in minuses {
+                    expr = Expr::Neg(Box::new(expr));
+                }
+                expr
+            });
 
         let prod = atom.clone().foldl(
             just(Token::Multiply)
@@ -244,7 +271,7 @@ pub fn parser<'src>()
             },
         );
 
-        prod.clone().foldl(
+        let sum = prod.clone().foldl(
             just(Token::Plus)
                 .or(just(Token::Minus))
                 .then(prod)
@@ -254,6 +281,18 @@ pub fn parser<'src>()
                 Token::Minus => Expr::Sub(Box::new(lhs), Box::new(rhs)),
                 _ => unreachable!(),
             },
+        );
+
+        sum.clone().foldl(
+            just(Token::Union)
+                .or(just(Token::Intersection))
+                .then(sum)
+                .repeated(),
+            |lhs, (op, rhs)| match op {
+                Token::Union => Expr::Union(Box::new(lhs), Box::new(rhs)),
+                Token::Intersection => Expr::Intersection(Box::new(lhs), Box::new(rhs)),
+                _ => unreachable!(),
+            },
         )
     })
 }
@@ -261,8 +300,7 @@ pub fn parser<'src>()
 impl Expr {
     pub fn eval(&self, store: &BoxStore) -> BoxVariant {
         match self {
-            Expr::BlackEmpty => BoxVariant::Empty(BoxValue::zero()),
-            Expr::RedEmpty => BoxVariant::Empty(BoxValue::anti_zero()),
+            Expr::Empty => BoxVariant::Empty(BoxValue::zero()),
             Expr::Subscript(n, v) => {
                 let mut variant = v.eval(store);
                 variant.set_multiplicity(0, n.clone());
@@ -315,6 +353,18 @@ impl Expr {
                 }
                 BoxVariant::Any(vs.into())
             }
+            Expr::Set(elems) => {
+                let mut vs = Vec::new();
+                for elem in elems {
+                    let var = elem.eval(store).into_any();
+                    vs.push(var.into_any_raw());
+                }
+                BoxVariant::Set(vs.into())
+            }
+            Expr::Intersection(lhs, rhs) => {
+                BoxVariant::intersection(lhs.eval(store), rhs.eval(store))
+            }
+            Expr::Union(lhs, rhs) => BoxVariant::union(lhs.eval(store), rhs.eval(store)),
             _ => todo!(),
         }
     }
@@ -367,7 +417,9 @@ mod tests {
 
         // let input = "⌊⌈1,1⌉,⌈1,2⌉,₂⌈2,2⌉⌋";
         // let input = "⌊⌈⌊□⌋,⌊□⌋⌉,⌈⌊□⌋,⌊□,□⌋⌉,⌈⌊□,□⌋,⌊□,□⌋⌉,⌈⌊□,□⌋,⌊□,□⌋⌉⌋";
-        let input = "⌊⌈⌊□⌋,⌊□⌋⌉,⌈⌊□⌋,⌊₂□⌋⌉,₂⌈⌊₂□⌋,⌊₂□⌋⌉⌋";
+        // let input = "⌊⌈⌊□⌋,⌊□⌋⌉,⌈⌊□⌋,⌊₂□⌋⌉,₂⌈⌊₂□⌋,⌊₂□⌋⌉⌋";
+        // let input = "{2, 3, 4} ∪ {2, 5}";
+        let input = "{2, 3, 4} ∩ {2, 5}";
         let lexer = Token::lexer(input);
         let mut tokens = vec![];
         for (token, span) in lexer.spanned() {

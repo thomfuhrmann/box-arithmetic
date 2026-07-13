@@ -60,16 +60,16 @@ impl Display for BoxVariant {
             return write!(f, "{}", num);
         }
 
-        let open_bracket = if kind == BoxKind::Unixel || kind == BoxKind::Pixel {
-            "⌈"
-        } else {
-            "⌊"
+        let open_bracket = match kind {
+            BoxKind::Unixel | BoxKind::Pixel => "⌈",
+            BoxKind::Set => "{",
+            _ => "⌊",
         };
 
-        let close_bracket = if kind == BoxKind::Unixel || kind == BoxKind::Pixel {
-            "⌉"
-        } else {
-            "⌋"
+        let close_bracket = match kind {
+            BoxKind::Unixel | BoxKind::Pixel => "⌉",
+            BoxKind::Set => "}",
+            _ => "⌋",
         };
 
         let open = if self.is_anti() {
@@ -133,16 +133,16 @@ impl<T: BoxType> Display for BoxDisplay<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let kind = self.0.get_kind(0);
 
-        let open_bracket = if kind == BoxKind::Unixel || kind == BoxKind::Pixel {
-            "⌈"
-        } else {
-            "⌊"
+        let open_bracket = match kind {
+            BoxKind::Unixel | BoxKind::Pixel => "⌈",
+            BoxKind::Set => "{",
+            _ => "⌊",
         };
 
-        let close_bracket = if kind == BoxKind::Unixel || kind == BoxKind::Pixel {
-            "⌉"
-        } else {
-            "⌋"
+        let close_bracket = match kind {
+            BoxKind::Unixel | BoxKind::Pixel => "⌉",
+            BoxKind::Set => "}",
+            _ => "⌋",
         };
 
         let open = if self.0.is_anti() {

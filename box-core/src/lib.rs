@@ -22,6 +22,8 @@ pub mod parser;
 pub mod set;
 pub mod store;
 
+// TODO: Add list box type
+
 /// Kind of boxes that can exist in a store
 #[derive(Debug, Clone, Hash, PartialEq, Eq, EnumDiscriminants)]
 #[strum_discriminants(name(BoxKind))]
