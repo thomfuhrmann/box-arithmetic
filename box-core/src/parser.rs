@@ -1,10 +1,8 @@
 use crate::{BoxValue, BoxVariant, Color, store::BoxStore};
 
-use chumsky::prelude::*;
+use chumsky::{prelude::*, util::MaybeRef};
 use logos::{Lexer, Logos};
 use malachite::Natural;
-
-// TODO: parsing logic for colored tokens: <red>_</red>
 
 fn parse_subscript(lex: &mut Lexer<Token>) -> Option<Natural> {
     let slice = lex.slice();
@@ -39,10 +37,8 @@ fn parse_subscript(lex: &mut Lexer<Token>) -> Option<Natural> {
 pub enum Token {
     #[token("□")]
     Empty,
-    // Match numbers
     #[regex(r"[0-9]+", |lex|lex.slice().parse())]
     Number(Natural),
-    // Match Vars like 'alpha'
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice().to_string())]
     Var(String),
     #[token("+")]
@@ -91,21 +87,21 @@ pub enum Expr {
     Num(Natural),
     Var(String),
     Neg(Box<Expr>),
+    Subscript(Natural, Box<Expr>),
+    Anti(Box<Expr>),
     Add(Box<Expr>, Box<Expr>),
     Sub(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
     Div(Box<Expr>, Box<Expr>),
     Intersection(Box<Expr>, Box<Expr>),
     Union(Box<Expr>, Box<Expr>),
+    Box(Vec<Expr>),
+    List(Vec<Expr>),
+    Set(Vec<Expr>),
     Unixel(Box<Expr>),
     Vexel(Vec<Expr>),
     Pixel(Box<Expr>, Box<Expr>),
     Maxel(Vec<Expr>),
-    List(Vec<Expr>),
-    Box(Vec<Expr>),
-    Set(Vec<Expr>),
-    Subscript(Natural, Box<Expr>),
-    Anti(Box<Expr>),
 }
 
 fn subscript<'a>() -> impl Parser<'a, &'a [Token], Natural, extra::Err<Simple<'a, Token>>> + Clone {
@@ -115,99 +111,37 @@ fn subscript<'a>() -> impl Parser<'a, &'a [Token], Natural, extra::Err<Simple<'a
     })
 }
 
-fn colored<'a>(
+fn colored_token<'a>(
     token: Token,
-) -> impl Parser<'a, &'a [Token], Token, extra::Err<Simple<'a, Token>>> + Clone {
-    just(Token::RedOpen)
+) -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
+    just(token.clone()).to(Color::Black).or(just(Token::RedOpen)
         .ignore_then(just(token))
         .then_ignore(just(Token::RedClose))
+        .to(Color::Red))
 }
 
 fn open_box<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
-    just(Token::OpenBox)
-        .to(Color::Black)
-        .or(just(Token::RedOpen)
-            .ignore_then(just(Token::OpenBox))
-            .then_ignore(just(Token::RedClose))
-            .to(Color::Red))
+    colored_token(Token::OpenBox)
 }
 
 fn close_box<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
-    just(Token::CloseBox)
-        .to(Color::Black)
-        .or(just(Token::RedOpen)
-            .ignore_then(just(Token::CloseBox))
-            .then_ignore(just(Token::RedClose))
-            .to(Color::Red))
+    colored_token(Token::CloseBox)
 }
 
-fn open_list<'a>() -> impl Parser<'a, &'a [Token], Token, extra::Err<Simple<'a, Token>>> + Clone {
-    just(Token::OpenList).or(colored(Token::OpenList))
+fn open_list<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
+    colored_token(Token::OpenList)
 }
 
-fn close_list<'a>() -> impl Parser<'a, &'a [Token], Token, extra::Err<Simple<'a, Token>>> + Clone {
-    just(Token::CloseList).or(colored(Token::CloseList))
+fn close_list<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
+    colored_token(Token::CloseList)
 }
 
-fn open_set<'a>() -> impl Parser<'a, &'a [Token], Token, extra::Err<Simple<'a, Token>>> + Clone {
-    just(Token::OpenSet).or(colored(Token::OpenSet))
+fn open_set<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
+    colored_token(Token::OpenSet)
 }
 
-fn close_set<'a>() -> impl Parser<'a, &'a [Token], Token, extra::Err<Simple<'a, Token>>> + Clone {
-    just(Token::CloseSet).or(colored(Token::CloseSet))
-}
-
-fn vexel_parser<'a, P>(
-    parser: P,
-) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
-where
-    P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
-{
-    let unixel = parser
-        .delimited_by(open_list(), close_list())
-        .map(|v| Expr::Unixel(Box::new(v)));
-
-    let unixel_with_subscript = subscript()
-        .or_not()
-        .then(unixel)
-        .map(|(sub, expr)| match sub {
-            Some(num) => Expr::Subscript(num, Box::new(expr)),
-            None => expr,
-        });
-
-    unixel_with_subscript
-        .separated_by(just(Token::Comma))
-        .collect::<Vec<_>>()
-        .delimited_by(open_box(), close_box())
-        .map(Expr::Vexel)
-}
-
-fn maxel_parser<'a, P>(
-    parser: P,
-) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
-where
-    P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
-{
-    let pixel = parser
-        .clone()
-        .then_ignore(just(Token::Comma))
-        .then(parser)
-        .delimited_by(open_list(), close_list())
-        .map(|(left, right)| Expr::Pixel(Box::new(left), Box::new(right)));
-
-    let pixel_with_subscript = subscript()
-        .or_not()
-        .then(pixel)
-        .map(|(sub, expr)| match sub {
-            Some(num) => Expr::Subscript(num, Box::new(expr)),
-            None => expr,
-        });
-
-    pixel_with_subscript
-        .separated_by(just(Token::Comma))
-        .collect::<Vec<_>>()
-        .delimited_by(open_box(), close_box())
-        .map(Expr::Maxel)
+fn close_set<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
+    colored_token(Token::CloseSet)
 }
 
 fn box_parser<'a, P>(
@@ -216,17 +150,31 @@ fn box_parser<'a, P>(
 where
     P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
 {
+    let items = parser.separated_by(just(Token::Comma)).collect::<Vec<_>>();
+
     subscript()
         .or_not()
-        .then(parser)
-        .map(|(sub, expr)| match sub {
-            Some(num) => Expr::Subscript(num, Box::new(expr)),
-            None => expr,
-        })
-        .separated_by(just(Token::Comma))
-        .collect::<Vec<_>>()
-        .delimited_by(open_box(), close_box())
-        .map(Expr::Box)
+        .then(open_box())
+        .then(items)
+        .then(close_box())
+        .validate(
+            |(((outer_sub, open_color), items), close_color), e, emitter| {
+                if open_color != close_color {
+                    emitter.emit(Simple::new(None, e.span()));
+                }
+
+                let base_box = if open_color == Color::Red {
+                    Expr::Anti(Box::new(Expr::Box(items)))
+                } else {
+                    Expr::Box(items)
+                };
+
+                match outer_sub {
+                    Some(num) => Expr::Subscript(num, Box::new(base_box)),
+                    None => base_box,
+                }
+            },
+        )
 }
 
 fn list_parser<'a, P>(
@@ -235,17 +183,31 @@ fn list_parser<'a, P>(
 where
     P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
 {
+    let items = parser.separated_by(just(Token::Comma)).collect::<Vec<_>>();
+
     subscript()
         .or_not()
-        .then(parser)
-        .map(|(sub, expr)| match sub {
-            Some(num) => Expr::Subscript(num, Box::new(expr)),
-            None => expr,
-        })
-        .separated_by(just(Token::Comma))
-        .collect::<Vec<_>>()
-        .delimited_by(open_list(), close_list())
-        .map(Expr::List)
+        .then(open_list())
+        .then(items)
+        .then(close_list())
+        .validate(
+            |(((outer_sub, open_color), items), close_color), e, emitter| {
+                if open_color != close_color {
+                    emitter.emit(Simple::new(None, e.span()));
+                }
+
+                let base_box = if open_color == Color::Red {
+                    Expr::Anti(Box::new(Expr::List(items)))
+                } else {
+                    Expr::List(items)
+                };
+
+                match outer_sub {
+                    Some(num) => Expr::Subscript(num, Box::new(base_box)),
+                    None => base_box,
+                }
+            },
+        )
 }
 
 fn set_parser<'a, P>(
@@ -254,17 +216,103 @@ fn set_parser<'a, P>(
 where
     P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
 {
+    let items = parser.separated_by(just(Token::Comma)).collect::<Vec<_>>();
+
     subscript()
         .or_not()
+        .then(open_set())
+        .then(items)
+        .then(close_set())
+        .validate(
+            |(((outer_sub, open_color), items), close_color), e, emitter| {
+                if open_color != close_color {
+                    emitter.emit(Simple::new(None, e.span()));
+                }
+
+                let base_box = if open_color == Color::Red {
+                    Expr::Anti(Box::new(Expr::Set(items)))
+                } else {
+                    Expr::Set(items)
+                };
+
+                match outer_sub {
+                    Some(num) => Expr::Subscript(num, Box::new(base_box)),
+                    None => base_box,
+                }
+            },
+        )
+}
+
+fn vexel_parser<'a, P>(
+    parser: P,
+) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
+where
+    P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
+{
+    let unixel_with_subscript = subscript()
+        .or_not()
+        .then(open_list())
         .then(parser)
-        .map(|(sub, expr)| match sub {
-            Some(num) => Expr::Subscript(num, Box::new(expr)),
-            None => expr,
-        })
-        .separated_by(just(Token::Comma))
-        .collect::<Vec<_>>()
-        .delimited_by(open_set(), close_set())
-        .map(Expr::Set)
+        .then(close_list())
+        .validate(
+            |(((outer_sub, open_color), item), close_color), e, emitter| {
+                if open_color != close_color {
+                    emitter.emit(Simple::new(None, e.span()));
+                }
+
+                let base_box = if open_color == Color::Red {
+                    Expr::Anti(Box::new(Expr::Unixel(Box::new(item))))
+                } else {
+                    Expr::Unixel(Box::new(item))
+                };
+
+                match outer_sub {
+                    Some(num) => Expr::Subscript(num, Box::new(base_box)),
+                    None => base_box,
+                }
+            },
+        );
+
+    box_parser(unixel_with_subscript)
+}
+
+fn maxel_parser<'a, P>(
+    parser: P,
+) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
+where
+    P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
+{
+    let values = parser
+        .clone()
+        .then_ignore(just(Token::Comma))
+        .then(parser)
+        .map(|(left, right)| Expr::Pixel(Box::new(left), Box::new(right)));
+
+    let pixel_with_subscript = subscript()
+        .or_not()
+        .then(open_list())
+        .then(values)
+        .then(close_list())
+        .validate(
+            |(((outer_sub, open_color), pix), close_color), e, emitter| {
+                if open_color != close_color {
+                    emitter.emit(Simple::new(Some(MaybeRef::Val(Token::CloseBox)), e.span()));
+                }
+
+                let base_box = if open_color == Color::Red {
+                    Expr::Anti(Box::new(pix))
+                } else {
+                    pix
+                };
+
+                match outer_sub {
+                    Some(num) => Expr::Subscript(num, Box::new(base_box)),
+                    None => base_box,
+                }
+            },
+        );
+
+    box_parser(pixel_with_subscript)
 }
 
 pub fn parser<'src>()
@@ -412,6 +460,7 @@ impl Expr {
                 BoxVariant::intersection(lhs.eval(store), rhs.eval(store))
             }
             Expr::Union(lhs, rhs) => BoxVariant::union(lhs.eval(store), rhs.eval(store)),
+            Expr::Anti(v) => v.eval(store).into_anti(),
             _ => todo!(),
         }
     }
@@ -466,7 +515,8 @@ mod tests {
         // let input = "⌊⌈⌊□⌋,⌊□⌋⌉,⌈⌊□⌋,⌊□,□⌋⌉,⌈⌊□,□⌋,⌊□,□⌋⌉,⌈⌊□,□⌋,⌊□,□⌋⌉⌋";
         // let input = "⌊⌈⌊□⌋,⌊□⌋⌉,⌈⌊□⌋,⌊₂□⌋⌉,₂⌈⌊₂□⌋,⌊₂□⌋⌉⌋";
         // let input = "{2, 3, 4} ∪ {2, 5}";
-        let input = "{2, 3, 4} ∩ {2, 5}";
+        // let input = "{2, 3, 4} ∩ {2, 5}";
+        let input = "⌊₂<red>⌊</red>1,2,3<red>⌋</red>⌋";
         let lexer = Token::lexer(input);
         let mut tokens = vec![];
         for (token, span) in lexer.spanned() {

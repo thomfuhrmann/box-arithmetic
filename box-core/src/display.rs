@@ -110,7 +110,7 @@ impl Display for BoxVariant {
             }
             first = false;
 
-            let mult = child.get_multiplicity(0);
+            let mult: Natural = child.get_multiplicity(0);
             if f.alternate() {
                 if mult > 1 {
                     write!(f, "{}", to_subscript(mult))?;
