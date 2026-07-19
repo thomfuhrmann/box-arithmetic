@@ -25,9 +25,3 @@ box-core = { path = "../box-core" }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.76"
-
-[profile.release]
-opt-level = "z"
-lto = true
-codegen-units = 1
-panic = "abort"

@@ -1,4 +1,5 @@
 {
+  "homepage": "https://thomfuhrmann.github.io/box-arithmetic",
   "name": "web-ui",
   "private": true,
   "version": "0.0.0",
@@ -7,9 +8,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "gh-pages -d build"
   },
   "dependencies": {
+    "@base-ui/react": "^1.6.0",
     "@fontsource-variable/geist": "^5.2.9",
     "@tailwindcss/vite": "^4.3.3",
     "@tiptap/extension-color": "^3.28.0",
@@ -32,6 +35,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "gh-pages": "^6.3.0",
     "oxlint": "^1.74.0",
     "typescript": "~7.0.2",
     "vite": "^8.1.5"

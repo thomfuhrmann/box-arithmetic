@@ -1,4 +1,4 @@
-use crate::{BoxValue, BoxVariant, store::BoxStore};
+use crate::{BoxValue, BoxVariant, Color, store::BoxStore};
 
 use chumsky::prelude::*;
 use logos::{Lexer, Logos};
@@ -79,6 +79,10 @@ pub enum Token {
     Comma,
     #[regex(r"[₀₁₂₃₄₅₆₇₈₉]+", parse_subscript)]
     Subscript(Natural),
+    #[token("<red>")]
+    RedOpen,
+    #[token("</red>")]
+    RedClose,
 }
 
 #[derive(Debug, Clone)]
@@ -101,6 +105,7 @@ pub enum Expr {
     Box(Vec<Expr>),
     Set(Vec<Expr>),
     Subscript(Natural, Box<Expr>),
+    Anti(Box<Expr>),
 }
 
 fn subscript<'a>() -> impl Parser<'a, &'a [Token], Natural, extra::Err<Simple<'a, Token>>> + Clone {
@@ -110,6 +115,48 @@ fn subscript<'a>() -> impl Parser<'a, &'a [Token], Natural, extra::Err<Simple<'a
     })
 }
 
+fn colored<'a>(
+    token: Token,
+) -> impl Parser<'a, &'a [Token], Token, extra::Err<Simple<'a, Token>>> + Clone {
+    just(Token::RedOpen)
+        .ignore_then(just(token))
+        .then_ignore(just(Token::RedClose))
+}
+
+fn open_box<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
+    just(Token::OpenBox)
+        .to(Color::Black)
+        .or(just(Token::RedOpen)
+            .ignore_then(just(Token::OpenBox))
+            .then_ignore(just(Token::RedClose))
+            .to(Color::Red))
+}
+
+fn close_box<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
+    just(Token::CloseBox)
+        .to(Color::Black)
+        .or(just(Token::RedOpen)
+            .ignore_then(just(Token::CloseBox))
+            .then_ignore(just(Token::RedClose))
+            .to(Color::Red))
+}
+
+fn open_list<'a>() -> impl Parser<'a, &'a [Token], Token, extra::Err<Simple<'a, Token>>> + Clone {
+    just(Token::OpenList).or(colored(Token::OpenList))
+}
+
+fn close_list<'a>() -> impl Parser<'a, &'a [Token], Token, extra::Err<Simple<'a, Token>>> + Clone {
+    just(Token::CloseList).or(colored(Token::CloseList))
+}
+
+fn open_set<'a>() -> impl Parser<'a, &'a [Token], Token, extra::Err<Simple<'a, Token>>> + Clone {
+    just(Token::OpenSet).or(colored(Token::OpenSet))
+}
+
+fn close_set<'a>() -> impl Parser<'a, &'a [Token], Token, extra::Err<Simple<'a, Token>>> + Clone {
+    just(Token::CloseSet).or(colored(Token::CloseSet))
+}
+
 fn vexel_parser<'a, P>(
     parser: P,
 ) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
@@ -117,7 +164,7 @@ where
     P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
 {
     let unixel = parser
-        .delimited_by(just(Token::OpenList), just(Token::CloseList))
+        .delimited_by(open_list(), close_list())
         .map(|v| Expr::Unixel(Box::new(v)));
 
     let unixel_with_subscript = subscript()
@@ -131,7 +178,7 @@ where
     unixel_with_subscript
         .separated_by(just(Token::Comma))
         .collect::<Vec<_>>()
-        .delimited_by(just(Token::OpenBox), just(Token::CloseBox))
+        .delimited_by(open_box(), close_box())
         .map(Expr::Vexel)
 }
 
@@ -145,7 +192,7 @@ where
         .clone()
         .then_ignore(just(Token::Comma))
         .then(parser)
-        .delimited_by(just(Token::OpenList), just(Token::CloseList))
+        .delimited_by(open_list(), close_list())
         .map(|(left, right)| Expr::Pixel(Box::new(left), Box::new(right)));
 
     let pixel_with_subscript = subscript()
@@ -159,7 +206,7 @@ where
     pixel_with_subscript
         .separated_by(just(Token::Comma))
         .collect::<Vec<_>>()
-        .delimited_by(just(Token::OpenBox), just(Token::CloseBox))
+        .delimited_by(open_box(), close_box())
         .map(Expr::Maxel)
 }
 
@@ -178,7 +225,7 @@ where
         })
         .separated_by(just(Token::Comma))
         .collect::<Vec<_>>()
-        .delimited_by(just(Token::OpenBox), just(Token::CloseBox))
+        .delimited_by(open_box(), close_box())
         .map(Expr::Box)
 }
 
@@ -197,7 +244,7 @@ where
         })
         .separated_by(just(Token::Comma))
         .collect::<Vec<_>>()
-        .delimited_by(just(Token::OpenList), just(Token::CloseList))
+        .delimited_by(open_list(), close_list())
         .map(Expr::List)
 }
 
@@ -216,7 +263,7 @@ where
         })
         .separated_by(just(Token::Comma))
         .collect::<Vec<_>>()
-        .delimited_by(just(Token::OpenSet), just(Token::CloseSet))
+        .delimited_by(open_set(), close_set())
         .map(Expr::Set)
 }
 

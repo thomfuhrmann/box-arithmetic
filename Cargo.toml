@@ -1,8 +1,8 @@
 [workspace]
+resolver = "3"
 members = ["box-core", "wasm"]
 
 [workspace.package]
-name = "box-arithmetic"
 version = "0.1.3"
 edition = "2024"
 description = "A crate for Box Arithmetic. This crate defines the fundamental data structure, a mathematical box, and associated methods for doing basic algebraic operations."
@@ -12,8 +12,6 @@ repository = "https://github.com/thomfuhrmann/box-arithmetic.git"
 readme = "README.md"
 license = "MIT"
 
-workspace.resolver = "3"
-
 [workspace.dependencies]
 chumsky = "0.13.0"
 colored = "3.1.1"
@@ -21,3 +19,10 @@ logos = "0.16.1"
 malachite = "0.9.1"
 rapidhash = "4.4.1"
 strum = { version = "0.28.0", features = ["derive"] }
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"

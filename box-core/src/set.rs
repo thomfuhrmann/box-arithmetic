@@ -33,7 +33,7 @@ impl From<Vec<BoxValue<AnyBox>>> for BoxValue<SetBox> {
 impl BoxVariant {
     pub fn union(self, rhs: Self) -> Self {
         match (self, rhs) {
-            (BoxVariant::Set(l), BoxVariant::Set(r)) => BoxVariant::Set(BoxValue::union(&l, &r)),
+            (BoxVariant::Set(l), BoxVariant::Set(r)) => BoxVariant::Set(BoxValue::union(l, r)),
             (l, r) => panic!("Type Error: Cannot compute union of {:?} and {:?}", l, r),
         }
     }
@@ -41,7 +41,7 @@ impl BoxVariant {
     pub fn intersection(self, rhs: Self) -> Self {
         match (self, rhs) {
             (BoxVariant::Set(l), BoxVariant::Set(r)) => {
-                BoxVariant::Set(BoxValue::intersection(&l, &r))
+                BoxVariant::Set(BoxValue::intersection(l, r))
             }
             (l, r) => panic!(
                 "Type Error: Cannot compute intersection of {:?} and {:?}",
@@ -64,9 +64,9 @@ impl BoxValue<SetBox> {
     }
 
     /// Creates the supporting set of a box consisting of all its elements but with multiplicity one
-    pub fn support(&self) -> Self {
+    pub fn support(self) -> Self {
         let mut result = BoxValue::<SetBox>::new();
-        for mut child in self.clone() {
+        for mut child in self {
             child.set_multiplicity(0, 1_u32);
             result.extend(child);
         }
@@ -74,9 +74,11 @@ impl BoxValue<SetBox> {
     }
 
     /// Set union of two boxes
-    pub fn union(left: &Self, right: &Self) -> Self {
+    pub fn union(left: Self, right: Self) -> Self {
         let mut unique_children: RapidHashMap<u64, BoxValue<AnyBox>> = RapidHashMap::new();
-        for left_child in left.clone() {
+        let color = left.get_color(0) + right.get_color(0);
+
+        for left_child in left {
             let hash = left_child.hash_content(unique_children.hasher());
             if let Some(other) = unique_children.get_mut(&hash)
                 && left_child == *other
@@ -88,7 +90,7 @@ impl BoxValue<SetBox> {
                 unique_children.insert(hash, left_child);
             }
         }
-        for right_child in right.clone() {
+        for right_child in right {
             let hash = right_child.hash_content(unique_children.hasher());
             if let Some(other) = unique_children.get_mut(&hash)
                 && right_child == *other
@@ -101,7 +103,6 @@ impl BoxValue<SetBox> {
             }
         }
 
-        let color = left.get_color(0) + right.get_color(0);
         let mut result = BoxValue::empty_set(color);
         for (_, child) in unique_children.into_iter() {
             result.extend(child);
@@ -111,21 +112,22 @@ impl BoxValue<SetBox> {
     }
 
     /// Set intersection of two boxes
-    pub fn intersection(left: &Self, right: &Self) -> Self {
+    pub fn intersection(left: Self, right: Self) -> Self {
         let mut left_unique: RapidHashMap<u64, BoxValue<AnyBox>> = RapidHashMap::new();
-        for left_child in left.clone() {
+        let color = left.get_color(0) + right.get_color(0);
+
+        for left_child in left {
             let hash = left_child.hash_content(left_unique.hasher());
             left_unique.insert(hash, left_child);
         }
 
         let mut right_unique: RapidHashMap<u64, BoxValue<AnyBox>> = RapidHashMap::new();
-        for right_child in right.clone() {
+        for right_child in right {
             // use the same hasher as for the other left map
             let hash = right_child.hash_content(left_unique.hasher());
             right_unique.insert(hash, right_child);
         }
 
-        let color = left.get_color(0) + right.get_color(0);
         let mut result = BoxValue::empty_set(color);
 
         for (left_hash, mut left_child) in left_unique.into_iter() {
@@ -161,7 +163,7 @@ mod tests {
         n.extend_with_mul(BoxValue::from(3), 3_u32);
         n.extend(BoxValue::from(4));
 
-        let union = BoxValue::union(&m, &n);
+        let union = BoxValue::union(m.clone(), n.clone());
 
         let mut exp = BoxValue::empty_set(crate::Color::Black);
         exp.extend_with_mul(BoxValue::from(1), 7_u32);
@@ -172,7 +174,7 @@ mod tests {
 
         assert_eq!(union, exp.cast());
 
-        let intersection = BoxValue::intersection(&m, &n);
+        let intersection = BoxValue::intersection(m, n);
 
         let mut exp = BoxValue::empty_set(crate::Color::Black);
         exp.extend_with_mul(BoxValue::from(1), 4_u32);
