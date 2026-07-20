@@ -146,9 +146,12 @@ impl BoxValue<MaxelBox> {
         let mut unique_children: RapidHashMap<u64, BoxValue<PixelBox>> =
             rapidhash::RapidHashMap::default();
 
+        let left_col = left.get_color(0);
+        let right_col = right.get_color(0);
+
         let mut result = BoxValue::<MaxelBox>::new();
         result.kinds.push(BoxKind::Maxel);
-        result.colors.push(Color::Black);
+        result.colors.push(left_col * right_col);
         result.multiplicities.push(Natural::from(1_u32));
         result.lengths.push(1);
 
@@ -193,9 +196,12 @@ impl BoxValue<MaxelBox> {
         let mut unique_children: RapidHashMap<u64, BoxValue<UnixelBox>> =
             rapidhash::RapidHashMap::default();
 
+        let left_col = self.get_color(0);
+        let right_col = vex.get_color(0);
+
         let mut result = BoxValue::<VexelBox>::new();
         result.kinds.push(BoxKind::Vexel);
-        result.colors.push(Color::Black);
+        result.colors.push(left_col * right_col);
         result.multiplicities.push(Natural::from(1_u32));
         result.lengths.push(1);
 
@@ -298,6 +304,7 @@ macro_rules! maxel {
     ([$([$x:expr, $y:expr]),* $(,)?]) => {
         {
             use malachite::base::num::arithmetic::traits::SaturatingSub;
+
             let mut result = $crate::BoxValue::<$crate::MaxelBox>::new();
             result.kinds.push($crate::BoxKind::Maxel);
             result.colors.push($crate::Color::Black);

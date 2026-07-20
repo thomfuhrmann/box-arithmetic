@@ -1,11 +1,11 @@
-import Tiptap from "./components/TipTap"
+import Tiptap from "./components/TipTap";
 
 const App = () => {
-  return (
-    <div className="card">
-      <Tiptap />
-    </div>
-  )
-}
+	return (
+		<div className="card">
+			<Tiptap />
+		</div>
+	);
+};
 
-export default App
+export default App;

@@ -1,22 +1,15 @@
+use malachite::Natural;
 use std::fmt::Display;
 
-#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-use colored::Colorize;
-
-use malachite::Natural;
-
 use crate::{AnyBox, BoxKind, BoxType, BoxValue, BoxVariant};
-
-#[cfg(not(all(target_arch = "x86_64", target_os = "linux")))]
 trait Colorize {
     fn red(&self) -> String;
     fn black(&self) -> String;
 }
 
-#[cfg(not(all(target_arch = "x86_64", target_os = "linux")))]
 impl Colorize for str {
     fn red(&self) -> String {
-        self.to_string()
+        format!("<red>{}</red>", &self)
     }
     fn black(&self) -> String {
         self.to_string()
@@ -43,6 +36,36 @@ fn to_subscript(num: Natural) -> String {
         .collect()
 }
 
+fn open_bracket(kind: BoxKind, is_anti: bool) -> String {
+    let open_bracket = match kind {
+        BoxKind::Unixel | BoxKind::Pixel | BoxKind::List => "⌈",
+        BoxKind::Set => "{",
+        _ => "⌊",
+    };
+
+    if is_anti {
+        let string = format!("<red>{}</red>", open_bracket);
+        string
+    } else {
+        open_bracket.to_string()
+    }
+}
+
+fn close_bracket(kind: BoxKind, is_anti: bool) -> String {
+    let open_bracket = match kind {
+        BoxKind::Unixel | BoxKind::Pixel | BoxKind::List => "⌉",
+        BoxKind::Set => "}",
+        _ => "⌋",
+    };
+
+    if is_anti {
+        let string = format!("<red>{}</red>", open_bracket);
+        string
+    } else {
+        open_bracket.to_string()
+    }
+}
+
 impl<T: BoxType> std::fmt::Display for BoxValue<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -59,6 +82,8 @@ impl<T: BoxType> std::fmt::Display for BoxValue<T> {
 impl Display for BoxVariant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let kind = self.get_kind(0);
+        let is_anti = self.is_anti();
+
         if kind == BoxKind::Empty {
             let zero = if self.is_anti() {
                 "0".red()
@@ -78,29 +103,8 @@ impl Display for BoxVariant {
             return write!(f, "{}", num);
         }
 
-        let open_bracket = match kind {
-            BoxKind::Unixel | BoxKind::Pixel => "⌈",
-            BoxKind::Set => "{",
-            _ => "⌊",
-        };
-
-        let close_bracket = match kind {
-            BoxKind::Unixel | BoxKind::Pixel => "⌉",
-            BoxKind::Set => "}",
-            _ => "⌋",
-        };
-
-        let open = if self.is_anti() {
-            open_bracket.red()
-        } else {
-            open_bracket.black()
-        };
-
-        let close = if self.is_anti() {
-            close_bracket.red()
-        } else {
-            close_bracket.black()
-        };
+        let open = open_bracket(kind, is_anti);
+        let close = close_bracket(kind, is_anti);
 
         write!(f, "{}", open)?;
         let mut first = true;
@@ -127,7 +131,8 @@ impl Display for BoxVariant {
             }
         }
 
-        write!(f, "{}", close)
+        let string = write!(f, "{}", close);
+        string
     }
 }
 
@@ -149,31 +154,11 @@ impl<'a> From<&'a BoxVariant> for BoxDisplay<AnyBox> {
 
 impl<T: BoxType> Display for BoxDisplay<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let kind = self.0.get_kind(0);
+        let kind = self.0.kind();
+        let is_anti = self.0.is_anti();
 
-        let open_bracket = match kind {
-            BoxKind::Unixel | BoxKind::Pixel => "⌈",
-            BoxKind::Set => "{",
-            _ => "⌊",
-        };
-
-        let close_bracket = match kind {
-            BoxKind::Unixel | BoxKind::Pixel => "⌉",
-            BoxKind::Set => "}",
-            _ => "⌋",
-        };
-
-        let open = if self.0.is_anti() {
-            open_bracket.red()
-        } else {
-            open_bracket.black()
-        };
-
-        let close = if self.0.is_anti() {
-            close_bracket.red()
-        } else {
-            close_bracket.black()
-        };
+        let open = open_bracket(kind, is_anti);
+        let close = close_bracket(kind, is_anti);
 
         write!(f, "{}", open)?;
 
@@ -226,7 +211,8 @@ impl<T: BoxType> Display for BoxDisplay<T> {
             }
         }
 
-        write!(f, "{}", close)
+        let string = write!(f, "{}", close);
+        string
     }
 }
 

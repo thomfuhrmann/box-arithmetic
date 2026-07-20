@@ -22,7 +22,77 @@ pub mod parser;
 pub mod set;
 pub mod store;
 
-// TODO: Add list box type
+/// Traits for types of boxes
+pub trait BoxType: Sized + Clone {
+    const KIND: BoxKind;
+}
+
+/// Implementations of the [`BoxType`] trait
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AnyBox;
+impl BoxType for AnyBox {
+    const KIND: BoxKind = BoxKind::Any;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EmptyBox;
+impl BoxType for EmptyBox {
+    const KIND: BoxKind = BoxKind::Empty;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NumBox;
+impl BoxType for NumBox {
+    const KIND: BoxKind = BoxKind::Num;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PolynumBox;
+impl BoxType for PolynumBox {
+    const KIND: BoxKind = BoxKind::Polynum;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MultinumBox;
+impl BoxType for MultinumBox {
+    const KIND: BoxKind = BoxKind::Multinum;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PixelBox;
+impl BoxType for PixelBox {
+    const KIND: BoxKind = BoxKind::Pixel;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MaxelBox;
+impl BoxType for MaxelBox {
+    const KIND: BoxKind = BoxKind::Maxel;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UnixelBox;
+impl BoxType for UnixelBox {
+    const KIND: BoxKind = BoxKind::Unixel;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VexelBox;
+impl BoxType for VexelBox {
+    const KIND: BoxKind = BoxKind::Vexel;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SetBox;
+impl BoxType for SetBox {
+    const KIND: BoxKind = BoxKind::Set;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ListBox;
+impl BoxType for ListBox {
+    const KIND: BoxKind = BoxKind::List;
+}
 
 /// Kind of boxes that can exist in a store
 #[derive(Debug, Clone, Hash, PartialEq, Eq, EnumDiscriminants)]
@@ -39,6 +109,7 @@ pub enum BoxVariant {
     Pixel(BoxValue<PixelBox>),
     Maxel(BoxValue<MaxelBox>),
     Set(BoxValue<SetBox>),
+    List(BoxValue<ListBox>),
 }
 
 #[macro_export]
@@ -55,6 +126,7 @@ macro_rules! dispatch {
             BoxVariant::Pixel(inner) => inner.$($field)*,
             BoxVariant::Maxel(inner) => inner.$($field)*,
             BoxVariant::Set(inner) => inner.$($field)*,
+            BoxVariant::List(inner) => inner.$($field)*,
         }
     };
 
@@ -70,6 +142,7 @@ macro_rules! dispatch {
             BoxVariant::Pixel(inner) => inner.$($field)*,
             BoxVariant::Maxel(inner) => inner.$($field)*,
             BoxVariant::Set(inner) => inner.$($field)*,
+            BoxVariant::List(inner) => inner.$($field)*,
         }
     };
 
@@ -85,6 +158,7 @@ macro_rules! dispatch {
             BoxVariant::Pixel(inner) => inner.$($field)*,
             BoxVariant::Maxel(inner) => inner.$($field)*,
             BoxVariant::Set(inner) => inner.$($field)*,
+            BoxVariant::List(inner) => inner.$($field)*,
         }
     };
 }
@@ -185,16 +259,17 @@ impl BoxVariant {
     /// Repack the box based on its runtime type
     pub fn repack_raw<T: BoxType>(raw: BoxValue<T>) -> Self {
         match raw.kinds[0] {
-            BoxKind::Any => BoxVariant::Any(raw.cast::<AnyBox>()),
-            BoxKind::Empty => BoxVariant::Empty(raw.cast::<EmptyBox>()),
-            BoxKind::Num => BoxVariant::Num(raw.cast::<NumBox>()),
-            BoxKind::Polynum => BoxVariant::Polynum(raw.cast::<PolynumBox>()),
-            BoxKind::Multinum => BoxVariant::Multinum(raw.cast::<MultinumBox>()),
-            BoxKind::Unixel => BoxVariant::Unixel(raw.cast::<UnixelBox>()),
-            BoxKind::Vexel => BoxVariant::Vexel(raw.cast::<VexelBox>()),
-            BoxKind::Pixel => BoxVariant::Pixel(raw.cast::<PixelBox>()),
-            BoxKind::Maxel => BoxVariant::Maxel(raw.cast::<MaxelBox>()),
-            BoxKind::Set => BoxVariant::Set(raw.cast::<SetBox>()),
+            BoxKind::Any => BoxVariant::Any(raw.cast()),
+            BoxKind::Empty => BoxVariant::Empty(raw.cast()),
+            BoxKind::Num => BoxVariant::Num(raw.cast()),
+            BoxKind::Polynum => BoxVariant::Polynum(raw.cast()),
+            BoxKind::Multinum => BoxVariant::Multinum(raw.cast()),
+            BoxKind::Unixel => BoxVariant::Unixel(raw.cast()),
+            BoxKind::Vexel => BoxVariant::Vexel(raw.cast()),
+            BoxKind::Pixel => BoxVariant::Pixel(raw.cast()),
+            BoxKind::Maxel => BoxVariant::Maxel(raw.cast()),
+            BoxKind::Set => BoxVariant::Set(raw.cast()),
+            BoxKind::List => BoxVariant::List(raw.cast()),
         }
     }
 
@@ -214,6 +289,7 @@ impl BoxVariant {
             (BoxVariant::Vexel(l), BoxVariant::Vexel(r)) => l.is_eq_content(r),
             (BoxVariant::Maxel(l), BoxVariant::Maxel(r)) => l.is_eq_content(r),
             (BoxVariant::Set(l), BoxVariant::Set(r)) => l.is_eq_content(r),
+            (BoxVariant::List(l), BoxVariant::List(r)) => l.is_eq_content(r),
             (_, _) => false,
         }
     }
@@ -284,76 +360,16 @@ impl IntoVariant for SetBox {
     }
 }
 
+impl IntoVariant for ListBox {
+    fn into_variant(v: BoxValue<Self>) -> BoxVariant {
+        BoxVariant::List(v)
+    }
+}
+
 impl<T: IntoVariant> From<BoxValue<T>> for BoxVariant {
     fn from(value: BoxValue<T>) -> Self {
         T::into_variant(value)
     }
-}
-
-/// Traits for types of boxes
-pub trait BoxType: Sized + Clone {
-    const KIND: BoxKind;
-}
-
-/// Implementations of the [`BoxType`] trait
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AnyBox;
-impl BoxType for AnyBox {
-    const KIND: BoxKind = BoxKind::Any;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct EmptyBox;
-impl BoxType for EmptyBox {
-    const KIND: BoxKind = BoxKind::Empty;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NumBox;
-impl BoxType for NumBox {
-    const KIND: BoxKind = BoxKind::Num;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PolynumBox;
-impl BoxType for PolynumBox {
-    const KIND: BoxKind = BoxKind::Polynum;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MultinumBox;
-impl BoxType for MultinumBox {
-    const KIND: BoxKind = BoxKind::Multinum;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PixelBox;
-impl BoxType for PixelBox {
-    const KIND: BoxKind = BoxKind::Pixel;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MaxelBox;
-impl BoxType for MaxelBox {
-    const KIND: BoxKind = BoxKind::Maxel;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct UnixelBox;
-impl BoxType for UnixelBox {
-    const KIND: BoxKind = BoxKind::Unixel;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct VexelBox;
-impl BoxType for VexelBox {
-    const KIND: BoxKind = BoxKind::Vexel;
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SetBox;
-impl BoxType for SetBox {
-    const KIND: BoxKind = BoxKind::Set;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -371,6 +387,15 @@ impl<T: BoxType> Default for BoxValue<T> {
     }
 }
 
+impl<T: BoxType> Hash for BoxValue<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.kinds.hash(state);
+        self.colors.hash(state);
+        self.multiplicities.hash(state);
+        self.lengths.hash(state);
+    }
+}
+
 impl From<Vec<BoxValue<AnyBox>>> for BoxValue<AnyBox> {
     fn from(value: Vec<BoxValue<AnyBox>>) -> Self {
         let mut result = BoxValue::new();
@@ -385,12 +410,17 @@ impl From<Vec<BoxValue<AnyBox>>> for BoxValue<AnyBox> {
     }
 }
 
-impl<T: BoxType> Hash for BoxValue<T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.kinds.hash(state);
-        self.colors.hash(state);
-        self.multiplicities.hash(state);
-        self.lengths.hash(state);
+impl From<Vec<BoxValue<AnyBox>>> for BoxValue<ListBox> {
+    fn from(value: Vec<BoxValue<AnyBox>>) -> Self {
+        let mut result = BoxValue::new();
+        result.kinds.push(BoxKind::List);
+        result.colors.push(Color::Black);
+        result.multiplicities.push(malachite::Natural::from(1_u32));
+        result.lengths.push(1);
+        for any_box in value {
+            result.extend(any_box);
+        }
+        result
     }
 }
 

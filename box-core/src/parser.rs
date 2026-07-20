@@ -49,12 +49,12 @@ pub enum Token {
     Multiply,
     #[token("/")]
     Divide,
+    #[token("^")]
+    Caret,
     #[token("∩")]
     Intersection,
     #[token("∪")]
     Union,
-    #[token("^")]
-    Caret,
     #[token("(")]
     OpenGroup,
     #[token(")")]
@@ -79,6 +79,8 @@ pub enum Token {
     RedOpen,
     #[token("</red>")]
     RedClose,
+    #[token("der")]
+    Der,
 }
 
 #[derive(Debug, Clone)]
@@ -93,11 +95,12 @@ pub enum Expr {
     Sub(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
     Div(Box<Expr>, Box<Expr>),
+    Caret(Box<Expr>, Natural),
     Intersection(Box<Expr>, Box<Expr>),
     Union(Box<Expr>, Box<Expr>),
     Box(Vec<Expr>),
-    List(Vec<Expr>),
     Set(Vec<Expr>),
+    List(Vec<Expr>),
     Unixel(Box<Expr>),
     Vexel(Vec<Expr>),
     Pixel(Box<Expr>, Box<Expr>),
@@ -346,18 +349,31 @@ pub fn parser<'src>()
         let atom = just(Token::Minus)
             .repeated()
             .collect::<Vec<_>>()
+            .then(subscript().or_not())
             .then(base_atom)
-            .map(|(minuses, mut expr)| {
+            .map(|((minuses, num), expr)| {
+                let mut expr = if let Some(num) = num {
+                    Expr::Subscript(num, Box::new(expr))
+                } else {
+                    expr
+                };
                 for _ in minuses {
                     expr = Expr::Neg(Box::new(expr));
                 }
                 expr
             });
 
-        let prod = atom.clone().foldl(
+        let caret = atom
+            .clone()
+            .then_ignore(just(Token::Caret))
+            .then(select! { Token::Number(n) => n })
+            .map(|(base, n)| Expr::Caret(Box::new(base), n));
+
+        let prod = caret.clone().or(atom.clone()).foldl(
             just(Token::Multiply)
                 .or(just(Token::Divide))
-                .then(atom)
+                // Bugfix: check for caret before falling back to a bare atom
+                .then(caret.or(atom))
                 .repeated(),
             |lhs, (op, rhs)| match op {
                 Token::Multiply => Expr::Mul(Box::new(lhs), Box::new(rhs)),
@@ -396,12 +412,15 @@ impl Expr {
     pub fn eval(&self, store: &BoxStore) -> BoxVariant {
         match self {
             Expr::Empty => BoxVariant::Empty(BoxValue::zero()),
+            Expr::Num(n) => BoxVariant::Num(BoxValue::from(n.clone())),
+            Expr::Var(name) => store
+                .fetch_box_by_name(name)
+                .expect("Undefined Var assignment"),
             Expr::Subscript(n, v) => {
                 let mut variant = v.eval(store);
                 variant.set_multiplicity(0, n.clone());
                 variant
             }
-            Expr::Num(n) => BoxVariant::Num(BoxValue::from(n.clone())),
             Expr::Neg(rhs) => BoxVariant::Num(BoxValue::from(-1)) * rhs.eval(store),
             Expr::Add(lhs, rhs) => lhs.eval(store) + rhs.eval(store),
             Expr::Mul(lhs, rhs) => lhs.eval(store) * rhs.eval(store),
@@ -409,9 +428,28 @@ impl Expr {
                 lhs.eval(store) + BoxVariant::Num(BoxValue::from(-1)) * rhs.eval(store)
             }
             // Expr::Div(lhs, rhs) => todo!(),
-            Expr::Var(name) => store
-                .fetch_box_by_name(name)
-                .expect("Undefined Var assignment"),
+            Expr::Caret(v, n) => {
+                let variant = v.eval(store);
+                if *n == 0 {
+                    return BoxVariant::Num(BoxValue::one());
+                }
+
+                let mut acc = variant.clone();
+                let mut i = n.clone();
+                let one = malachite::Natural::from(1u32);
+
+                // Multiply (n - 1) times
+                while i > one {
+                    acc = acc * variant.clone();
+                    i -= &one;
+                }
+
+                acc
+            }
+            Expr::Intersection(lhs, rhs) => {
+                BoxVariant::intersection(lhs.eval(store), rhs.eval(store))
+            }
+            Expr::Union(lhs, rhs) => BoxVariant::union(lhs.eval(store), rhs.eval(store)),
             Expr::Unixel(x) => BoxVariant::Unixel(BoxValue::unixel(x.eval(store).into_any_raw())),
             Expr::Vexel(xs) => {
                 let mut vs = Vec::new();
@@ -456,10 +494,14 @@ impl Expr {
                 }
                 BoxVariant::Set(vs.into())
             }
-            Expr::Intersection(lhs, rhs) => {
-                BoxVariant::intersection(lhs.eval(store), rhs.eval(store))
+            Expr::List(elems) => {
+                let mut vs = Vec::new();
+                for elem in elems {
+                    let var = elem.eval(store).into_any();
+                    vs.push(var.into_any_raw());
+                }
+                BoxVariant::List(vs.into())
             }
-            Expr::Union(lhs, rhs) => BoxVariant::union(lhs.eval(store), rhs.eval(store)),
             Expr::Anti(v) => v.eval(store).into_anti(),
             _ => todo!(),
         }
@@ -482,7 +524,7 @@ mod tests {
         let alpha = BoxValue::alpha();
         store.store_box_with_name("alpha", alpha);
 
-        let input = "-2 + 3 - 2*alpha + 5*alpha*alpha";
+        let input = "-2 + 3 - 2*alpha + 5*alpha^2";
         let lexer = Token::lexer(input);
         let mut tokens = vec![];
         for (token, span) in lexer.spanned() {
@@ -516,7 +558,8 @@ mod tests {
         // let input = "⌊⌈⌊□⌋,⌊□⌋⌉,⌈⌊□⌋,⌊₂□⌋⌉,₂⌈⌊₂□⌋,⌊₂□⌋⌉⌋";
         // let input = "{2, 3, 4} ∪ {2, 5}";
         // let input = "{2, 3, 4} ∩ {2, 5}";
-        let input = "⌊₂<red>⌊</red>1,2,3<red>⌋</red>⌋";
+        // let input = "⌊₂<red>⌊</red>1,2,3<red>⌋</red>⌋";
+        let input = "⌊⌈⌊□⌋,⌊□⌋⌉,⌈⌊□⌋,⌊₂□⌋⌉,₂⌈⌊₂□⌋,⌊₂□⌋⌉⌋";
         let lexer = Token::lexer(input);
         let mut tokens = vec![];
         for (token, span) in lexer.spanned() {
