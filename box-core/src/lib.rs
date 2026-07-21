@@ -3,7 +3,6 @@ use strum::EnumDiscriminants;
 
 use std::{
     cmp::Ordering::Equal,
-    // fmt::{self, Display, Formatter},
     hash::{BuildHasher, Hash, Hasher},
     marker::PhantomData,
     ops::{Add, Mul},

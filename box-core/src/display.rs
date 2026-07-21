@@ -1,18 +1,42 @@
+use crate::{AnyBox, BoxKind, BoxType, BoxValue, BoxVariant};
+use colored::Colorize;
 use malachite::Natural;
 use std::fmt::Display;
 
-use crate::{AnyBox, BoxKind, BoxType, BoxValue, BoxVariant};
-trait Colorize {
-    fn red(&self) -> String;
-    fn black(&self) -> String;
+#[derive(Debug, Default, Clone, Copy)]
+pub enum DisplayMode {
+    #[default]
+    Markup,
+    Terminal,
 }
 
-impl Colorize for str {
-    fn red(&self) -> String {
-        format!("<red>{}</red>", &self)
+trait ColorizeToken {
+    fn colorize_token(&self, mode: DisplayMode, is_anti: bool) -> String;
+}
+
+impl ColorizeToken for str {
+    fn colorize_token(&self, mode: DisplayMode, is_anti: bool) -> String {
+        match (mode, is_anti) {
+            (DisplayMode::Markup, true) => format!("<red>{}</red>", self),
+            (DisplayMode::Terminal, true) => self.red().to_string(),
+            _ => self.to_string(),
+        }
     }
-    fn black(&self) -> String {
-        self.to_string()
+}
+
+fn open_bracket(kind: BoxKind) -> &'static str {
+    match kind {
+        BoxKind::Unixel | BoxKind::Pixel | BoxKind::List => "⌈",
+        BoxKind::Set => "{",
+        _ => "⌊",
+    }
+}
+
+fn close_bracket(kind: BoxKind) -> &'static str {
+    match kind {
+        BoxKind::Unixel | BoxKind::Pixel | BoxKind::List => "⌉",
+        BoxKind::Set => "}",
+        _ => "⌋",
     }
 }
 
@@ -36,36 +60,6 @@ fn to_subscript(num: Natural) -> String {
         .collect()
 }
 
-fn open_bracket(kind: BoxKind, is_anti: bool) -> String {
-    let open_bracket = match kind {
-        BoxKind::Unixel | BoxKind::Pixel | BoxKind::List => "⌈",
-        BoxKind::Set => "{",
-        _ => "⌊",
-    };
-
-    if is_anti {
-        let string = format!("<red>{}</red>", open_bracket);
-        string
-    } else {
-        open_bracket.to_string()
-    }
-}
-
-fn close_bracket(kind: BoxKind, is_anti: bool) -> String {
-    let open_bracket = match kind {
-        BoxKind::Unixel | BoxKind::Pixel | BoxKind::List => "⌉",
-        BoxKind::Set => "}",
-        _ => "⌋",
-    };
-
-    if is_anti {
-        let string = format!("<red>{}</red>", open_bracket);
-        string
-    } else {
-        open_bracket.to_string()
-    }
-}
-
 impl<T: BoxType> std::fmt::Display for BoxValue<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -83,28 +77,19 @@ impl Display for BoxVariant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let kind = self.get_kind(0);
         let is_anti = self.is_anti();
+        let mode = DisplayMode::Markup;
 
         if kind == BoxKind::Empty {
-            let zero = if self.is_anti() {
-                "0".red()
-            } else {
-                "0".black()
-            };
-
+            let zero = "0".colorize_token(mode, self.is_anti());
             return write!(f, "{}", zero);
         } else if kind == BoxKind::Num {
             let mult = self.get_multiplicity(1);
-            let num = if self.is_anti() {
-                mult.to_string().red()
-            } else {
-                mult.to_string().black()
-            };
-
+            let num = mult.to_string().colorize_token(mode, self.is_anti());
             return write!(f, "{}", num);
         }
 
-        let open = open_bracket(kind, is_anti);
-        let close = close_bracket(kind, is_anti);
+        let open = open_bracket(kind).colorize_token(mode, is_anti);
+        let close = close_bracket(kind).colorize_token(mode, is_anti);
 
         write!(f, "{}", open)?;
         let mut first = true;
@@ -131,39 +116,42 @@ impl Display for BoxVariant {
             }
         }
 
-        let string = write!(f, "{}", close);
-        string
+        write!(f, "{}", close)
     }
 }
 
 #[derive(Debug)]
-pub struct BoxDisplay<T: BoxType>(pub(crate) BoxValue<T>);
+pub struct BoxDisplay<T: BoxType> {
+    pub value: BoxValue<T>,
+    pub mode: DisplayMode,
+}
 
 impl<T: BoxType> BoxDisplay<T> {
-    pub fn new(variant: BoxValue<T>) -> Self {
-        Self(variant)
+    pub fn new(value: BoxValue<T>, mode: DisplayMode) -> Self {
+        Self { value, mode }
     }
 }
 
 impl<'a> From<&'a BoxVariant> for BoxDisplay<AnyBox> {
     fn from(value: &'a BoxVariant) -> Self {
         let raw_any = value.clone().into_any_raw();
-        BoxDisplay::new(raw_any)
+        BoxDisplay::new(raw_any, DisplayMode::default())
     }
 }
 
 impl<T: BoxType> Display for BoxDisplay<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let kind = self.0.kind();
-        let is_anti = self.0.is_anti();
+        let kind = self.value.kind();
+        let is_anti = self.value.is_anti();
+        let mode = self.mode;
 
-        let open = open_bracket(kind, is_anti);
-        let close = close_bracket(kind, is_anti);
+        let open = open_bracket(kind).colorize_token(mode, is_anti);
+        let close = close_bracket(kind).colorize_token(mode, is_anti);
 
         write!(f, "{}", open)?;
 
         let mut first = true;
-        for child in self.0.clone() {
+        for child in self.value.clone() {
             if !first {
                 write!(f, ",")?;
             }
@@ -172,7 +160,7 @@ impl<T: BoxType> Display for BoxDisplay<T> {
             let len = child.get_length(0);
             let mult = child.get_multiplicity(0);
             if len > 1 {
-                let child = BoxDisplay::new(child);
+                let child = BoxDisplay::new(child, mode);
                 if f.alternate() {
                     if mult > 1 {
                         write!(f, "{}", to_subscript(mult))?;
@@ -188,11 +176,7 @@ impl<T: BoxType> Display for BoxDisplay<T> {
                     }
                 }
             } else {
-                let symbol = if child.is_anti() {
-                    "□".red()
-                } else {
-                    "□".black()
-                };
+                let symbol = "□".colorize_token(mode, child.is_anti());
 
                 if f.alternate() {
                     if mult > 1 {
@@ -211,8 +195,7 @@ impl<T: BoxType> Display for BoxDisplay<T> {
             }
         }
 
-        let string = write!(f, "{}", close);
-        string
+        write!(f, "{}", close)
     }
 }
 

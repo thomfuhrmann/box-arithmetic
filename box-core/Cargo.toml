@@ -12,6 +12,7 @@ license = { workspace = true }
 
 [dependencies]
 chumsky = { workspace = true }
+colored = { workspace = true }
 logos = { workspace = true }
 malachite = { workspace = true }
 rapidhash = { workspace = true }

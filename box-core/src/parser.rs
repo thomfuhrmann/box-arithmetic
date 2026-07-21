@@ -1,4 +1,4 @@
-use crate::{BoxValue, BoxVariant, Color, store::BoxStore};
+use crate::{BoxKind, BoxValue, BoxVariant, Color, store::BoxStore};
 
 use chumsky::{prelude::*, util::MaybeRef};
 use logos::{Lexer, Logos};
@@ -484,6 +484,14 @@ impl Expr {
                     let var = bx.eval(store).into_any();
                     vs.push(var.into_any_raw());
                 }
+
+                // check if box represents a number
+                let empty = vs.iter().all(|v| v.get_kind(0) == BoxKind::Empty);
+                if empty && !vs.is_empty() {
+                    let mul = vs[0].get_multiplicity(0);
+                    return BoxVariant::Num(mul.into());
+                }
+
                 BoxVariant::Any(vs.into())
             }
             Expr::Set(elems) => {
@@ -513,7 +521,8 @@ mod tests {
     use logos::Logos;
 
     use crate::{
-        BoxValue,
+        AnyBox, BoxValue,
+        display::BoxDisplay,
         parser::{Parser, Token, parser},
         store::BoxStore,
     };
@@ -586,7 +595,9 @@ mod tests {
 
         // evaluates the AST to get the result
         let val = ast.eval(&store);
+        let any_val: BoxDisplay<AnyBox> = (&val).into();
 
+        println!("{any_val:?}");
         println!("\n[result]\n{:#}", val);
     }
 }
