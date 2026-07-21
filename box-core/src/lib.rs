@@ -194,8 +194,8 @@ impl BoxVariant {
     }
 
     #[inline]
-    pub fn set_multiplicity(&mut self, idx: usize, mul: Natural) {
-        dispatch!(self => multiplicities[idx] = mul);
+    pub fn set_multiplicity(&mut self, idx: usize, mul: impl Into<Natural>) {
+        dispatch!(self => multiplicities[idx] = mul.into());
     }
 
     #[inline]
@@ -840,7 +840,7 @@ impl BoxValue<MultinumBox> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BoxValueIter<T: BoxType> {
     raw: BoxValue<T>,
 }
@@ -899,6 +899,7 @@ impl IntoIterator for BoxVariant {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct BoxVariantIter {
     inner: BoxValueIter<AnyBox>,
 }

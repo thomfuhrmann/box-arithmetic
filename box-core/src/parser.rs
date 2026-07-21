@@ -485,9 +485,9 @@ impl Expr {
                     vs.push(var.into_any_raw());
                 }
 
-                // check if box represents a number
+                // check if box represents a number and return appropriate variant
                 let empty = vs.iter().all(|v| v.get_kind(0) == BoxKind::Empty);
-                if empty && !vs.is_empty() {
+                if empty && vs.len() == 1 {
                     let mul = vs[0].get_multiplicity(0);
                     return BoxVariant::Num(mul.into());
                 }
@@ -521,7 +521,7 @@ mod tests {
     use logos::Logos;
 
     use crate::{
-        AnyBox, BoxValue,
+        BoxValue,
         display::BoxDisplay,
         parser::{Parser, Token, parser},
         store::BoxStore,
@@ -531,7 +531,7 @@ mod tests {
     fn test_parse() {
         let mut store = BoxStore::new();
         let alpha = BoxValue::alpha();
-        store.store_box_with_name("alpha", alpha);
+        store.store_with_name("alpha", alpha);
 
         let input = "-2 + 3 - 2*alpha + 5*alpha^2";
         let lexer = Token::lexer(input);
@@ -560,7 +560,7 @@ mod tests {
 
         // evaluates the AST to get the result
         let val = ast.eval(&store);
-        println!("\n[result]\n{:#}", val);
+        println!("\n[result]\n{:#}", BoxDisplay::from(val));
 
         // let input = "⌊⌈1,1⌉,⌈1,2⌉,₂⌈2,2⌉⌋";
         // let input = "⌊⌈⌊□⌋,⌊□⌋⌉,⌈⌊□⌋,⌊□,□⌋⌉,⌈⌊□,□⌋,⌊□,□⌋⌉,⌈⌊□,□⌋,⌊□,□⌋⌉⌋";
@@ -595,9 +595,6 @@ mod tests {
 
         // evaluates the AST to get the result
         let val = ast.eval(&store);
-        let any_val: BoxDisplay<AnyBox> = (&val).into();
-
-        println!("{any_val:?}");
-        println!("\n[result]\n{:#}", val);
+        println!("\n[result]\n{:#}", BoxDisplay::from(val));
     }
 }

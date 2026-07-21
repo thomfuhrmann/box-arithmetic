@@ -1,4 +1,5 @@
 use box_core::BoxValue;
+use box_core::display::BoxDisplay;
 use box_core::parser::{Token, parser};
 use box_core::store::BoxStore;
 use chumsky::prelude::*;
@@ -20,7 +21,7 @@ impl BoxCalculator {
 
         let mut store = BoxStore::new();
         let alpha = BoxValue::alpha();
-        store.store_box_with_name("alpha", alpha);
+        store.store_with_name("α", alpha);
 
         Self { store }
     }
@@ -52,7 +53,7 @@ impl BoxCalculator {
         // evaluate the AST to get the result
         let val = ast.eval(&self.store);
 
-        let layout = format!("{}", val);
+        let layout = format!("{}", BoxDisplay::from(val));
         Ok(layout)
     }
 }
