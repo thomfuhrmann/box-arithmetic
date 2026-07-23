@@ -39,7 +39,7 @@ pub enum Token {
     Empty,
     #[regex(r"[0-9]+", |lex|lex.slice().parse())]
     Number(Natural),
-    #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice().to_string())]
+    #[regex(r"[\p{Greek}a-zA-Z_][\p{Greek}a-zA-Z0-9_]*", |lex| lex.slice().to_string())]
     Var(String),
     #[token("+")]
     Plus,
@@ -529,30 +529,52 @@ mod tests {
     use logos::{Lexer, Logos};
 
     use crate::{
-        BoxKind, BoxValue,
+        BoxKind, BoxValue, BoxVariant,
         display::BoxDisplay,
         parser::{Parser, Token, parser},
         store::BoxStore,
     };
 
     fn collect_tokens(lexer: Lexer<Token>) -> Result<Vec<Token>, ()> {
-        let mut tokens = vec![];
-        for token in lexer {
-            tokens.push(token?);
-        }
+        lexer
+            .spanned()
+            .map(|(token, span)| token.map_err(|_| eprintln!("could not lex token at: {span:?}")))
+            .collect()
+    }
 
-        Ok(tokens)
+    fn eval_input(input: &str) -> Result<BoxVariant, ()> {
+        let mut store = BoxStore::new();
+        store.store_with_name("α", BoxValue::alpha());
+
+        let lexer = Token::lexer(input);
+        let tokens = collect_tokens(lexer)?;
+
+        parser()
+            .parse(&tokens)
+            .into_result()
+            .map(|ast| ast.eval(&store))
+            .map_err(|e| eprintln!("could not parse expression: {e:?}"))
     }
 
     #[test]
     fn test_num() {
-        let store = BoxStore::new();
         let input = "⌊□,□⌋";
-        let lexer = Token::lexer(input);
-        let tokens = collect_tokens(lexer).unwrap();
-        let ast = parser().parse(&tokens).into_result().unwrap();
-        let val = ast.eval(&store);
+        let val = eval_input(input).expect("eval_input failed");
         assert_eq!(val.get_kind(0), BoxKind::Num);
+
+        let input = "⌊□,□⌋+⌊□⌋";
+        let val = eval_input(input).expect("eval_input failed");
+        assert_eq!(val.get_kind(0), BoxKind::Num);
+    }
+
+    #[test]
+    fn test_polynum() {
+        let input = "α+1";
+        let val = eval_input(input);
+        match val {
+            Ok(val) => assert_eq!(val.get_kind(0), BoxKind::Polynum),
+            Err(e) => println!("could not eval input: {e:?}"),
+        }
     }
 
     #[test]

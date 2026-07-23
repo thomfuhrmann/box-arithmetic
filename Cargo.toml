@@ -19,6 +19,8 @@ logos = "0.16.1"
 malachite = "0.9.1"
 rapidhash = "4.4.1"
 strum = { version = "0.28.0", features = ["derive"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde-wasm-bindgen = "0.6.5"
 
 
 [profile.wasm-release]

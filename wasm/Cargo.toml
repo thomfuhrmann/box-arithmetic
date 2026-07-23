@@ -21,6 +21,8 @@ chumsky = { workspace = true }
 logos = { workspace = true }
 wasm-bindgen = "0.2.126"
 box-core = { path = "../box-core" }
+serde = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.76"

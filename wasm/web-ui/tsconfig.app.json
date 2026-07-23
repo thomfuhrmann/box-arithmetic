@@ -26,11 +26,15 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@/*": [
-        "./src/*"
+        "./src/*",
+      ],
+      "wasm": [
+        "../pkg"
       ]
     }
   },
   "include": [
-    "src"
-, "env.d.ts"  ]
+    "src",
+    "env.d.ts"
+  ]
 }

@@ -11,6 +11,7 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import { Tiptap, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { ChevronRightIcon, GitBranchIcon } from "lucide-react";
+import { useState } from "react";
 import { BoxCalculator } from "wasm";
 import { Button } from "./ui/button";
 import { ButtonGroup } from "./ui/button-group";
@@ -40,9 +41,26 @@ const MathSymbols = Extension.create({
 	},
 });
 
+interface OutputValue {
+	mixed: string;
+	mixed_mul: string;
+	boxed: string;
+	boxed_mul: string;
+}
+
+export interface ShiftEnterExtractorOptions {
+	onEvaluate?: (result: OutputValue, inputExpr: string) => void;
+}
+
 // Extension to capture Shift+Enter and extract text
 const ShiftEnterExtractor = Extension.create({
 	name: "shiftEnterExtractor",
+
+	addOptions() {
+		return {
+			onEvaluate: (_res: OutputValue) => {},
+		};
+	},
 
 	addKeyboardShortcuts() {
 		return {
@@ -87,7 +105,9 @@ const ShiftEnterExtractor = Extension.create({
 				try {
 					const outputExpr = calculator.eval_expr(inputExpr);
 
-					console.log("output expression: ", outputExpr);
+					if (this.options.onEvaluate) {
+						this.options.onEvaluate(outputExpr);
+					}
 				} catch (e) {
 					console.log(e);
 				}
@@ -134,13 +154,19 @@ export const UnicodeSubscript = Extension.create({
 });
 
 function Editor() {
+	const [evalResult, setEvalResult] = useState<OutputValue | null>(null);
+
 	const editor = useEditor({
 		extensions: [
 			StarterKit,
 			MathSymbols,
 			TextStyle,
 			Color,
-			ShiftEnterExtractor,
+			ShiftEnterExtractor.configure({
+				onEvaluate: (result: OutputValue) => {
+					setEvalResult(result);
+				},
+			}),
 			UnicodeSubscript,
 		],
 		content: "",
@@ -473,6 +499,16 @@ function Editor() {
 					</CardFooter>
 				</Card>
 			</Tiptap>
+
+			{evalResult ? (
+				<Card>
+					<CardHeader>Evaluation result</CardHeader>
+					<CardContent>{evalResult.mixed}</CardContent>
+					<CardContent>{evalResult.mixed_mul}</CardContent>
+					<CardContent>{evalResult.boxed}</CardContent>
+					<CardContent>{evalResult.boxed_mul}</CardContent>
+				</Card>
+			) : null}
 		</div>
 	);
 }
