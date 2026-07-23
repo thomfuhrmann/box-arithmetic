@@ -78,9 +78,19 @@ const ShiftEnterExtractor = Extension.create({
 				};
 
 				// Generate token string and trim trailing newlines
-				const customMarkup = serializeNode(docJson).trim();
+				const inputExpr = serializeNode(docJson).trim();
 
-				console.log("Custom Markup:", customMarkup);
+				console.log("input expression:", inputExpr);
+
+				const calculator = new BoxCalculator();
+
+				try {
+					const outputExpr = calculator.eval_expr(inputExpr);
+
+					console.log("output expression: ", outputExpr);
+				} catch (e) {
+					console.log(e);
+				}
 
 				return true;
 			},
@@ -174,6 +184,10 @@ function Editor() {
 								<ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
 								<span>Operators must be inserted explicitly</span>
 							</li>
+							<li className="flex gap-2">
+								<ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+								<span>Boxes must be separated by commas</span>
+							</li>
 						</ul>
 						IO-Formats:
 						<ul className="grid gap-2 py-2 text-sm">
@@ -199,11 +213,14 @@ function Editor() {
 							⌊⌈1,1⌉,⌈1,2⌉,₂⌈2,2⌉⌋
 						</p>
 						<br />
-						Currently supported types and operaters:
+						Currently supported objects and operaters:
 						<ul className="grid gap-2 py-2 text-sm">
 							<li className="flex gap-2">
 								<ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-								<span>Types: Num, Polynum, Maxel, Vexel, Set</span>
+								<span>
+									Objects: numbers, polynumbers, unixels, pixels, maxels,
+									vexels, sets and lists
+								</span>
 							</li>
 							<li className="flex gap-2">
 								<ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />

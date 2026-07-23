@@ -175,17 +175,6 @@ impl IntoIterator for BoxDisplay {
 }
 
 fn box_display(box_display: &BoxDisplay, f: &mut Formatter<'_>) -> std::fmt::Result {
-    // check if the box in the store and return its name if present
-    let hash = box_display
-        .store
-        .boxes
-        .hasher()
-        .hash_one(&box_display.value);
-    let val = box_display.store.fetch_name(hash);
-    if let Some(val) = val {
-        return write!(f, "{}", val);
-    }
-
     let kind = box_display.value.get_kind(0);
     let is_anti = box_display.value.is_anti();
     let mode = box_display.mode;
@@ -243,16 +232,6 @@ fn box_display(box_display: &BoxDisplay, f: &mut Formatter<'_>) -> std::fmt::Res
 }
 
 fn mixed_display(box_display: &BoxDisplay, f: &mut Formatter<'_>) -> std::fmt::Result {
-    // check if the box in the store and return its name if present
-    // TODO: ignore multiplicities
-    let mut val = box_display.value.clone();
-    val.set_multiplicity(0, 1_u32);
-    let hash = box_display.store.boxes.hasher().hash_one(&val);
-    let val = box_display.store.fetch_name(hash);
-    if let Some(val) = val {
-        return write!(f, "{}", val);
-    }
-
     let kind = box_display.value.get_kind(0);
     let is_anti = box_display.value.is_anti();
     let mode = box_display.mode;
@@ -270,6 +249,38 @@ fn mixed_display(box_display: &BoxDisplay, f: &mut Formatter<'_>) -> std::fmt::R
             write!(f, "-")?;
         }
         return write!(f, "{}", num);
+    } else if kind == BoxKind::Polynum {
+        let alpha = BoxVariant::alpha();
+        let hash = box_display.store.boxes.hasher().hash_one(alpha);
+        let name = box_display.store.fetch_name(hash);
+        if let Some(name) = name {
+            let mut first = true;
+            for child in box_display.clone() {
+                let kind = child.value.get_kind(0);
+                let col = child.value.get_color(0);
+                let mul = child.value.get_multiplicity(0);
+                let op = if first {
+                    if col == Color::Red { "-" } else { "" }
+                } else {
+                    if col == Color::Red { " - " } else { " + " }
+                };
+                if kind == BoxKind::Num {
+                    let exp = child.value.get_multiplicity(1);
+                    if mul > 1 {
+                        write!(f, "{op}{mul}*{name}")?;
+                    } else {
+                        write!(f, "{op}{name}")?;
+                    };
+                    if exp > 1 {
+                        write!(f, "^{exp}")?;
+                    }
+                } else {
+                    write!(f, "{op}{mul}")?;
+                }
+                first = false;
+            }
+            return write!(f, "");
+        }
     }
 
     let open = open_bracket(kind).colorize_token(mode, is_anti);
@@ -331,6 +342,7 @@ mod tests {
         let mut store = BoxStore::new();
         let alpha = BoxVariant::alpha();
         store.store_with_name("α", alpha);
+        let arc_store = Arc::new(store);
 
         let minus_two = BoxDisplay::from(BoxVariant::from(-2));
         println!("{minus_two}");
@@ -349,7 +361,7 @@ mod tests {
 
         let alpha = BoxVariant::alpha();
         let mut disp = BoxDisplay::from(alpha.clone());
-        disp.set_store(Arc::new(store.clone()));
+        disp.set_store(arc_store.clone());
         println!("{disp}");
         println!("{disp:#}");
 
@@ -357,7 +369,7 @@ mod tests {
             + 2_u32 * BoxVariant::alpha()
             + BoxVariant::alpha() * BoxVariant::alpha();
         let mut disp = BoxDisplay::from(poly);
-        disp.set_store(Arc::new(store.clone()));
+        disp.set_store(arc_store.clone());
         println!("{disp}");
         println!("{disp:#}");
 

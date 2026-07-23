@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
-    "@fontsource-variable/geist": "^5.2.9",
+    "@fontsource-variable/geist": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tiptap/extension-color": "^3.28.0",
     "@tiptap/extension-text-style": "^3.28.0",
@@ -25,8 +25,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.25.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "shadcn": "^4.13.1",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3",
@@ -34,13 +34,17 @@
     "wasm": "file:../pkg"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.4",
+    "@biomejs/biome": "^2.5.5",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "esbuild": "^0.28.1",
     "gh-pages": "^6.3.0",
+    "rollup": "^4.62.2",
     "typescript": "~7.0.2",
-    "vite": "^8.1.5"
+    "vite": "^8.1.5",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.6.0"
   }
 }

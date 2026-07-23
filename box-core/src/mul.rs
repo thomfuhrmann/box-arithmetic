@@ -210,6 +210,7 @@ impl Mul for BoxVariant {
                     Color::Red => BoxValue::anti_zero().into(),
                 }
             }
+            (BoxVariant::Any(l), BoxVariant::Any(r)) => BoxVariant::repack_raw(l * r),
             (BoxVariant::Num(l), BoxVariant::Num(r)) => BoxVariant::repack_raw(l * r),
             (BoxVariant::Num(l), BoxVariant::Polynum(r)) => BoxVariant::repack_raw(l * r),
             (BoxVariant::Polynum(l), BoxVariant::Num(r)) => BoxVariant::repack_raw(l * r),

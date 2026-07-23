@@ -487,10 +487,18 @@ impl Expr {
 
                 // check if box represents a number and return appropriate variant
                 let empty = vs.iter().all(|v| v.get_kind(0) == BoxKind::Empty);
-                if empty && vs.len() == 1 {
-                    let mul = vs[0].get_multiplicity(0);
-                    return BoxVariant::Num(mul.into());
+                if empty {
+                    let len = vs.len();
+                    if len == 1 {
+                        let mul = vs[0].get_multiplicity(0);
+                        return BoxVariant::Num(mul.into());
+                    } else {
+                        let mul = Natural::from(len);
+                        return BoxVariant::Num(mul.into());
+                    }
                 }
+
+                // TODO: check for other structural types like polynum and multinum
 
                 BoxVariant::Any(vs.into())
             }
@@ -511,21 +519,41 @@ impl Expr {
                 BoxVariant::List(vs.into())
             }
             Expr::Anti(v) => v.eval(store).into_anti(),
-            _ => todo!(),
+            _ => panic!("Not implemented"),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use logos::Logos;
+    use logos::{Lexer, Logos};
 
     use crate::{
-        BoxValue,
+        BoxKind, BoxValue,
         display::BoxDisplay,
         parser::{Parser, Token, parser},
         store::BoxStore,
     };
+
+    fn collect_tokens(lexer: Lexer<Token>) -> Result<Vec<Token>, ()> {
+        let mut tokens = vec![];
+        for token in lexer {
+            tokens.push(token?);
+        }
+
+        Ok(tokens)
+    }
+
+    #[test]
+    fn test_num() {
+        let store = BoxStore::new();
+        let input = "⌊□,□⌋";
+        let lexer = Token::lexer(input);
+        let tokens = collect_tokens(lexer).unwrap();
+        let ast = parser().parse(&tokens).into_result().unwrap();
+        let val = ast.eval(&store);
+        assert_eq!(val.get_kind(0), BoxKind::Num);
+    }
 
     #[test]
     fn test_parse() {
@@ -535,16 +563,7 @@ mod tests {
 
         let input = "-2 + 3 - 2*alpha + 5*alpha^2";
         let lexer = Token::lexer(input);
-        let mut tokens = vec![];
-        for (token, span) in lexer.spanned() {
-            match token {
-                Ok(token) => tokens.push(token),
-                Err(e) => {
-                    println!("lexer error at {:?}: {:?}", span, e);
-                    return;
-                }
-            }
-        }
+        let tokens = collect_tokens(lexer).unwrap();
 
         // parse the tokens to construct an AST
         let ast = match parser().parse(&tokens).into_result() {
@@ -570,16 +589,7 @@ mod tests {
         // let input = "⌊₂<red>⌊</red>1,2,3<red>⌋</red>⌋";
         let input = "⌊⌈⌊□⌋,⌊□⌋⌉,⌈⌊□⌋,⌊₂□⌋⌉,₂⌈⌊₂□⌋,⌊₂□⌋⌉⌋";
         let lexer = Token::lexer(input);
-        let mut tokens = vec![];
-        for (token, span) in lexer.spanned() {
-            match token {
-                Ok(token) => tokens.push(token),
-                Err(e) => {
-                    println!("lexer error at {:?}: {:?}", span, e);
-                    return;
-                }
-            }
-        }
+        let tokens = collect_tokens(lexer).unwrap();
 
         // parse the tokens to construct an AST
         let ast = match parser().parse(&tokens).into_result() {

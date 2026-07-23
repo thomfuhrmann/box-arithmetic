@@ -533,17 +533,20 @@ impl<T: BoxType> BoxValue<T> {
                 return kinds_cmp;
             }
 
+            // values at the end carry the most weight
+            let mul_a = &self.multiplicities[range_a.clone()];
+            let mul_b = &self.multiplicities[range_b.clone()];
+            let mul_comp = mul_a.iter().rev().cmp(mul_b.iter().rev());
+            if mul_comp != Equal {
+                return mul_comp;
+            }
+
             let col_cmp = self.colors[range_a.clone()].cmp(&self.colors[range_b.clone()]);
             if col_cmp != Equal {
                 return col_cmp;
             }
 
-            let len_cmp = self.lengths[range_a.clone()].cmp(&self.lengths[range_b.clone()]);
-            if len_cmp != Equal {
-                return len_cmp;
-            }
-
-            self.multiplicities[range_a].cmp(&self.multiplicities[range_b])
+            self.lengths[range_a].cmp(&self.lengths[range_b])
         });
 
         // load staging buffers

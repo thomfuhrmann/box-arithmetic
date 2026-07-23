@@ -196,6 +196,7 @@ impl Add for BoxVariant {
                 }
                 l
             }
+            (BoxVariant::Any(l), BoxVariant::Any(r)) => BoxVariant::repack_raw(l + r),
             (BoxVariant::Num(l), BoxVariant::Num(r)) => BoxVariant::repack_raw(l + r),
             (BoxVariant::Num(l), BoxVariant::Polynum(r)) => BoxVariant::repack_raw(l + r),
             (BoxVariant::Polynum(l), BoxVariant::Num(r)) => BoxVariant::repack_raw(l + r),

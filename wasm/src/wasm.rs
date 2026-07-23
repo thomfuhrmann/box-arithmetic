@@ -68,7 +68,7 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_calculator() {
         let calc = BoxCalculator::new();
-        let input = "⌊⌈⌊□⌋,⌊□⌋⌉,⌈⌊□⌋,⌊₂□⌋⌉,₂⌈⌊₂□⌋,⌊₂□⌋⌉⌋";
+        let input = "⌊□,□⌋+⌊□,□⌋";
         let val = calc.eval_expr(input).unwrap();
         console_log!("{val:?}");
     }
