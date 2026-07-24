@@ -15,4 +15,8 @@ export default defineConfig({
 			wasm: path.resolve(__dirname, "../pkg"),
 		},
 	},
+	build: {
+		target: "esnext",
+		chunkSizeWarningLimit: 1500,
+	},
 });
