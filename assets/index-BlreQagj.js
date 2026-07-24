@@ -30916,7 +30916,7 @@ img.ProseMirror-separator {
             trigger: `Background`,
             content: (0, J.jsxs)(`div`, {
                 children: [
-                    `Box Arithmetic is a new approach to understanding arithmetic and much of the mathematics built upon it. Two key ideas form its foundation:`,
+                    `Box Arithmetic is a new approach to arithmetic and much of the mathematics built upon it, currently being developed by Norman J. Wildberger. Two key ideas form its foundation:`,
                     (0, J.jsxs)(`ul`, {
                         className: `grid gap-2 py-2 text-sm`,
                         children: [
