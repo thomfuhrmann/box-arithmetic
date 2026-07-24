@@ -113,51 +113,51 @@ pub enum BoxVariant {
 
 #[macro_export]
 macro_rules! dispatch {
-    (&$self:ident => $($field:tt)*) => {
+    (&$self:ident => $($op:tt)*) => {
         match $self {
-            BoxVariant::Any(inner) => inner.$($field)*,
-            BoxVariant::Empty(inner) => inner.$($field)*,
-            BoxVariant::Num(inner) => inner.$($field)*,
-            BoxVariant::Polynum(inner) => inner.$($field)*,
-            BoxVariant::Multinum(inner) => inner.$($field)*,
-            BoxVariant::Unixel(inner) => inner.$($field)*,
-            BoxVariant::Vexel(inner) => inner.$($field)*,
-            BoxVariant::Pixel(inner) => inner.$($field)*,
-            BoxVariant::Maxel(inner) => inner.$($field)*,
-            BoxVariant::Set(inner) => inner.$($field)*,
-            BoxVariant::List(inner) => inner.$($field)*,
+            BoxVariant::Any(inner) => inner.$($op)*,
+            BoxVariant::Empty(inner) => inner.$($op)*,
+            BoxVariant::Num(inner) => inner.$($op)*,
+            BoxVariant::Polynum(inner) => inner.$($op)*,
+            BoxVariant::Multinum(inner) => inner.$($op)*,
+            BoxVariant::Unixel(inner) => inner.$($op)*,
+            BoxVariant::Vexel(inner) => inner.$($op)*,
+            BoxVariant::Pixel(inner) => inner.$($op)*,
+            BoxVariant::Maxel(inner) => inner.$($op)*,
+            BoxVariant::Set(inner) => inner.$($op)*,
+            BoxVariant::List(inner) => inner.$($op)*,
         }
     };
 
-    (&mut $self:ident => $($field:tt)*) => {
+    (&mut $self:ident => $($op:tt)*) => {
         match $self {
-            BoxVariant::Any(inner) => inner.$($field)*,
-            BoxVariant::Empty(inner) => inner.$($field)*,
-            BoxVariant::Num(inner) => inner.$($field)*,
-            BoxVariant::Polynum(inner) => inner.$($field)*,
-            BoxVariant::Multinum(inner) => inner.$($field)*,
-            BoxVariant::Unixel(inner) => inner.$($field)*,
-            BoxVariant::Vexel(inner) => inner.$($field)*,
-            BoxVariant::Pixel(inner) => inner.$($field)*,
-            BoxVariant::Maxel(inner) => inner.$($field)*,
-            BoxVariant::Set(inner) => inner.$($field)*,
-            BoxVariant::List(inner) => inner.$($field)*,
+            BoxVariant::Any(inner) => inner.$($op)*,
+            BoxVariant::Empty(inner) => inner.$($op)*,
+            BoxVariant::Num(inner) => inner.$($op)*,
+            BoxVariant::Polynum(inner) => inner.$($op)*,
+            BoxVariant::Multinum(inner) => inner.$($op)*,
+            BoxVariant::Unixel(inner) => inner.$($op)*,
+            BoxVariant::Vexel(inner) => inner.$($op)*,
+            BoxVariant::Pixel(inner) => inner.$($op)*,
+            BoxVariant::Maxel(inner) => inner.$($op)*,
+            BoxVariant::Set(inner) => inner.$($op)*,
+            BoxVariant::List(inner) => inner.$($op)*,
         }
     };
 
-    ($self:ident => $($field:tt)*) => {
+    ($self:ident => $($op:tt)*) => {
         match $self {
-            BoxVariant::Any(inner) => inner.$($field)*,
-            BoxVariant::Empty(inner) => inner.$($field)*,
-            BoxVariant::Num(inner) => inner.$($field)*,
-            BoxVariant::Polynum(inner) => inner.$($field)*,
-            BoxVariant::Multinum(inner) => inner.$($field)*,
-            BoxVariant::Unixel(inner) => inner.$($field)*,
-            BoxVariant::Vexel(inner) => inner.$($field)*,
-            BoxVariant::Pixel(inner) => inner.$($field)*,
-            BoxVariant::Maxel(inner) => inner.$($field)*,
-            BoxVariant::Set(inner) => inner.$($field)*,
-            BoxVariant::List(inner) => inner.$($field)*,
+            BoxVariant::Any(inner) => inner.$($op)*,
+            BoxVariant::Empty(inner) => inner.$($op)*,
+            BoxVariant::Num(inner) => inner.$($op)*,
+            BoxVariant::Polynum(inner) => inner.$($op)*,
+            BoxVariant::Multinum(inner) => inner.$($op)*,
+            BoxVariant::Unixel(inner) => inner.$($op)*,
+            BoxVariant::Vexel(inner) => inner.$($op)*,
+            BoxVariant::Pixel(inner) => inner.$($op)*,
+            BoxVariant::Maxel(inner) => inner.$($op)*,
+            BoxVariant::Set(inner) => inner.$($op)*,
+            BoxVariant::List(inner) => inner.$($op)*,
         }
     };
 }

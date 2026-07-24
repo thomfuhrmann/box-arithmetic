@@ -1,4 +1,4 @@
-use crate::{BoxKind, BoxValue, BoxVariant, Color, store::BoxStore};
+use crate::{AnyBox, BoxKind, BoxValue, BoxVariant, Color, NumBox, store::BoxStore};
 
 use chumsky::{prelude::*, util::MaybeRef};
 use logos::{Lexer, Logos};
@@ -326,9 +326,10 @@ pub fn parser<'src>()
             Token::Number(n) => Expr::Num(n),
         };
 
-        let empty_box = select! {
-            Token::Empty => Expr::Empty,
-        };
+        let empty_box = colored_token(Token::Empty).map(|col| match col {
+            Color::Black => Expr::Empty,
+            Color::Red => Expr::Anti(Box::new(Expr::Empty)),
+        });
 
         let var = select! { Token::Var(name) => Expr::Var(name) };
 
@@ -412,6 +413,7 @@ impl Expr {
     pub fn eval(&self, store: &BoxStore) -> BoxVariant {
         match self {
             Expr::Empty => BoxVariant::Empty(BoxValue::zero()),
+            Expr::Anti(v) => v.eval(store).into_anti(),
             Expr::Num(n) => BoxVariant::Num(BoxValue::from(n.clone())),
             Expr::Var(name) => store
                 .fetch_box_by_name(name)
@@ -481,24 +483,72 @@ impl Expr {
             Expr::Box(bxs) => {
                 let mut vs = Vec::new();
                 for bx in bxs {
-                    let var = bx.eval(store).into_any();
+                    let var = bx.eval(store);
                     vs.push(var.into_any_raw());
                 }
 
-                // check if box represents a number and return appropriate variant
-                let empty = vs.iter().all(|v| v.get_kind(0) == BoxKind::Empty);
-                if empty {
+                // structural type inference
+                let is_num = vs.iter().all(|v| v.get_kind(0) == BoxKind::Empty);
+                if is_num {
                     let len = vs.len();
                     if len == 1 {
                         let mul = vs[0].get_multiplicity(0);
-                        return BoxVariant::Num(mul.into());
+                        let col = vs[0].get_color(0);
+                        let mut num: BoxValue<NumBox> = mul.into();
+                        if col == Color::Red {
+                            num.set_color(1, Color::Red);
+                        }
+                        return BoxVariant::Num(num);
                     } else {
-                        let mul = Natural::from(len);
-                        return BoxVariant::Num(mul.into());
+                        let sum = vs.iter().fold(0, |mut acc, v| {
+                            if v.get_color(0) == Color::Red {
+                                acc -= 1;
+                            } else {
+                                acc += 1;
+                            }
+                            acc
+                        });
+                        let mut num: BoxValue<NumBox> = sum.into();
+                        if sum < 0 {
+                            num.set_color(1, Color::Red);
+                        }
+                        return BoxVariant::Num(num);
                     }
                 }
 
-                // TODO: check for other structural types like polynum and multinum
+                let is_polynum = vs
+                    .iter()
+                    .all(|v| v.get_kind(0) == BoxKind::Num || v.get_kind(0) == BoxKind::Empty);
+                if is_polynum {
+                    let mut poly: BoxValue<AnyBox> = vs.into();
+                    poly.set_kind(0, BoxKind::Polynum);
+                    return BoxVariant::Polynum(poly.cast());
+                }
+
+                let is_multinum = vs.iter().all(|v| {
+                    v.get_kind(0) == BoxKind::Polynum
+                        || v.get_kind(0) == BoxKind::Num
+                        || v.get_kind(0) == BoxKind::Empty
+                });
+                if is_multinum {
+                    let mut poly: BoxValue<AnyBox> = vs.into();
+                    poly.set_kind(0, BoxKind::Multinum);
+                    return BoxVariant::Multinum(poly.cast());
+                }
+
+                let is_vexel = vs.iter().all(|v| v.get_kind(0) == BoxKind::Unixel);
+                if is_vexel {
+                    let mut poly: BoxValue<AnyBox> = vs.into();
+                    poly.set_kind(0, BoxKind::Vexel);
+                    return BoxVariant::Vexel(poly.cast());
+                }
+
+                let is_maxel = vs.iter().all(|v| v.get_kind(0) == BoxKind::Pixel);
+                if is_maxel {
+                    let mut poly: BoxValue<AnyBox> = vs.into();
+                    poly.set_kind(0, BoxKind::Maxel);
+                    return BoxVariant::Maxel(poly.cast());
+                }
 
                 BoxVariant::Any(vs.into())
             }
@@ -518,7 +568,6 @@ impl Expr {
                 }
                 BoxVariant::List(vs.into())
             }
-            Expr::Anti(v) => v.eval(store).into_anti(),
             _ => panic!("Not implemented"),
         }
     }
@@ -529,7 +578,7 @@ mod tests {
     use logos::{Lexer, Logos};
 
     use crate::{
-        BoxKind, BoxValue, BoxVariant,
+        BoxKind, BoxValue, BoxVariant, Color,
         display::BoxDisplay,
         parser::{Parser, Token, parser},
         store::BoxStore,
@@ -558,23 +607,77 @@ mod tests {
 
     #[test]
     fn test_num() {
+        let input = "2";
+        let val = eval_input(input).expect("eval_input failed");
+        assert_eq!(val.get_kind(0), BoxKind::Num);
+
         let input = "⌊□,□⌋";
         let val = eval_input(input).expect("eval_input failed");
         assert_eq!(val.get_kind(0), BoxKind::Num);
 
-        let input = "⌊□,□⌋+⌊□⌋";
+        let input = "⌊₂□⌋";
         let val = eval_input(input).expect("eval_input failed");
         assert_eq!(val.get_kind(0), BoxKind::Num);
+
+        let input = "⌊□,□⌋ + ⌊□⌋";
+        let val = eval_input(input).expect("eval_input failed");
+        assert_eq!(val.get_kind(0), BoxKind::Num);
+
+        let input = "⌊<red>□</red>,□,□⌋";
+        let val = eval_input(input).expect("eval_input failed");
+        assert_eq!(val.get_kind(0), BoxKind::Num);
+        assert_eq!(val.get_color(1), Color::Black);
     }
 
     #[test]
     fn test_polynum() {
         let input = "α+1";
-        let val = eval_input(input);
-        match val {
-            Ok(val) => assert_eq!(val.get_kind(0), BoxKind::Polynum),
-            Err(e) => println!("could not eval input: {e:?}"),
-        }
+        let val = eval_input(input).expect("eva_input failed");
+        assert_eq!(val.get_kind(0), BoxKind::Polynum);
+
+        let input = "⌊⌊□⌋⌋";
+        let val = eval_input(input).expect("eva_input failed");
+        assert_eq!(val.get_kind(0), BoxKind::Polynum);
+
+        let input = "α*α";
+        let val = eval_input(input).expect("eva_input failed");
+        assert_eq!(val.get_kind(0), BoxKind::Polynum);
+    }
+
+    #[test]
+    fn test_multinum() {
+        let input = "⌊⌊⌊□⌋⌋⌋";
+        let val = eval_input(input).expect("eva_input failed");
+        assert_eq!(val.get_kind(0), BoxKind::Multinum);
+    }
+
+    #[test]
+    fn test_vexel() {
+        let input = "⌊⌈1⌉,⌈2⌉,⌈3⌉⌋";
+        let val = eval_input(input).expect("eva_input failed");
+        assert_eq!(val.get_kind(0), BoxKind::Vexel);
+    }
+
+    #[test]
+    fn test_maxel() {
+        let input = "⌊⌈1,1⌉,⌈1,2⌉,⌈2,2⌉⌋";
+        let val = eval_input(input).expect("eva_input failed");
+        assert_eq!(val.get_kind(0), BoxKind::Maxel);
+    }
+
+    #[test]
+    fn test_list() {
+        let input = "⌈1,2,3⌉";
+        let val = eval_input(input).expect("eva_input failed");
+        println!("{val:?}");
+        assert_eq!(val.get_kind(0), BoxKind::List);
+    }
+
+    #[test]
+    fn test_set() {
+        let input = "{1,2,3}";
+        let val = eval_input(input).expect("eva_input failed");
+        assert_eq!(val.get_kind(0), BoxKind::Set);
     }
 
     #[test]
@@ -601,7 +704,7 @@ mod tests {
 
         // evaluates the AST to get the result
         let val = ast.eval(&store);
-        println!("\n[result]\n{:#}", BoxDisplay::from(val));
+        println!("\n[result]\n{:#}", BoxDisplay::from_variant(val, &store));
 
         // let input = "⌊⌈1,1⌉,⌈1,2⌉,₂⌈2,2⌉⌋";
         // let input = "⌊⌈⌊□⌋,⌊□⌋⌉,⌈⌊□⌋,⌊□,□⌋⌉,⌈⌊□,□⌋,⌊□,□⌋⌉,⌈⌊□,□⌋,⌊□,□⌋⌉⌋";
@@ -627,6 +730,6 @@ mod tests {
 
         // evaluates the AST to get the result
         let val = ast.eval(&store);
-        println!("\n[result]\n{:#}", BoxDisplay::from(val));
+        println!("\n[result]\n{:#}", BoxDisplay::from_variant(val, &store));
     }
 }

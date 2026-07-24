@@ -1,5 +1,3 @@
-use std::panic;
-
 use box_core::BoxValue;
 use box_core::display::{BoxDisplay, OutputFormat};
 use box_core::parser::{Token, parser};
@@ -42,8 +40,7 @@ impl BoxCalculator {
         console_error_panic_hook::set_once();
 
         let mut store = BoxStore::new();
-        let alpha = BoxValue::alpha();
-        store.store_with_name("α", alpha);
+        store.store_with_name("α", BoxValue::alpha());
 
         Self { store }
     }
@@ -75,7 +72,7 @@ impl BoxCalculator {
         // evaluate the AST to get the result
         let val = ast.eval(&self.store);
 
-        let mut disp = BoxDisplay::from(val);
+        let mut disp = BoxDisplay::from_variant(val, &self.store);
         let mixed = format!("{}", disp);
         let mixed_mul = format!("{:#}", disp);
 

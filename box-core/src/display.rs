@@ -4,7 +4,6 @@ use malachite::Natural;
 use std::{
     fmt::{Display, Formatter},
     hash::BuildHasher,
-    sync::Arc,
 };
 
 /// Display for [`BoxValue`] for debugging purposes
@@ -86,16 +85,16 @@ fn to_subscript(num: Natural) -> String {
 }
 
 #[derive(Debug, Clone)]
-pub struct BoxDisplay {
+pub struct BoxDisplay<'a> {
     pub value: BoxVariant,
     pub mode: ColorMode,
     pub format: OutputFormat,
-    pub store: Arc<BoxStore>,
+    pub store: &'a BoxStore,
 }
 
-impl BoxDisplay {
+impl<'a> BoxDisplay<'a> {
     pub fn new(
-        store: Arc<BoxStore>,
+        store: &'a BoxStore,
         value: BoxVariant,
         mode: ColorMode,
         format: OutputFormat,
@@ -116,32 +115,27 @@ impl BoxDisplay {
         self.format = format;
     }
 
-    pub fn set_store(&mut self, store: Arc<BoxStore>) {
+    pub fn set_store(&mut self, store: &'a BoxStore) {
         self.store = store;
     }
 }
 
-impl From<BoxVariant> for BoxDisplay {
-    fn from(value: BoxVariant) -> Self {
-        BoxDisplay::new(
-            Arc::new(BoxStore::default()),
-            value,
-            ColorMode::default(),
-            OutputFormat::default(),
-        )
+impl<'a> BoxDisplay<'a> {
+    pub fn from_variant(value: BoxVariant, store: &'a BoxStore) -> Self {
+        BoxDisplay::new(store, value, ColorMode::default(), OutputFormat::default())
     }
 }
 
 #[derive(Debug)]
-pub struct BoxDisplayIter {
+pub struct BoxDisplayIter<'a> {
     inner: BoxVariantIter,
     mode: ColorMode,
     format: OutputFormat,
-    store: Arc<BoxStore>,
+    store: &'a BoxStore,
 }
 
-impl Iterator for BoxDisplayIter {
-    type Item = BoxDisplay;
+impl<'a> Iterator for BoxDisplayIter<'a> {
+    type Item = BoxDisplay<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let value = self.inner.next();
@@ -151,7 +145,7 @@ impl Iterator for BoxDisplayIter {
                 value,
                 mode: self.mode,
                 format: self.format,
-                store: self.store.clone(),
+                store: self.store,
             });
         }
 
@@ -159,10 +153,9 @@ impl Iterator for BoxDisplayIter {
     }
 }
 
-impl IntoIterator for BoxDisplay {
-    type Item = BoxDisplay;
-
-    type IntoIter = BoxDisplayIter;
+impl<'a> IntoIterator for BoxDisplay<'a> {
+    type Item = BoxDisplay<'a>;
+    type IntoIter = BoxDisplayIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         BoxDisplayIter {
@@ -314,7 +307,7 @@ fn mixed_display(box_display: &BoxDisplay, f: &mut Formatter<'_>) -> std::fmt::R
     write!(f, "{}", close)
 }
 
-impl Display for BoxDisplay {
+impl<'a> Display for BoxDisplay<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let format = self.format;
 
@@ -327,7 +320,6 @@ impl Display for BoxDisplay {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
 
     use crate::{
         BoxVariant,
@@ -342,55 +334,52 @@ mod tests {
         let mut store = BoxStore::new();
         let alpha = BoxVariant::alpha();
         store.store_with_name("α", alpha);
-        let arc_store = Arc::new(store);
 
-        let minus_two = BoxDisplay::from(BoxVariant::from(-2));
+        let minus_two = BoxDisplay::from_variant(BoxVariant::from(-2), &store);
         println!("{minus_two}");
         println!("{minus_two:#}");
 
-        let mut minus_two = BoxDisplay::from(BoxVariant::from(-2));
+        let mut minus_two = BoxDisplay::from_variant(BoxVariant::from(-2), &store);
         minus_two.set_mode(ColorMode::Terminal);
         minus_two.set_format(OutputFormat::Boxed);
         println!("{minus_two}");
         println!("{minus_two:#}");
 
         let sum = BoxVariant::from(3) + BoxVariant::from(-2);
-        let disp = BoxDisplay::from(sum);
+        let disp = BoxDisplay::from_variant(sum, &store);
         println!("{disp}");
         println!("{disp:#}");
 
         let alpha = BoxVariant::alpha();
-        let mut disp = BoxDisplay::from(alpha.clone());
-        disp.set_store(arc_store.clone());
+        let disp = BoxDisplay::from_variant(alpha.clone(), &store);
         println!("{disp}");
         println!("{disp:#}");
 
         let poly = BoxVariant::from(-2)
             + 2_u32 * BoxVariant::alpha()
             + BoxVariant::alpha() * BoxVariant::alpha();
-        let mut disp = BoxDisplay::from(poly);
-        disp.set_store(arc_store.clone());
+        let disp = BoxDisplay::from_variant(poly, &store);
         println!("{disp}");
         println!("{disp:#}");
 
         let anti_box = BoxVariant::from(1).into_anti();
-        let disp = BoxDisplay::from(anti_box);
+        let disp = BoxDisplay::from_variant(anti_box, &store);
         println!("{disp}");
         println!("{disp:#}");
 
         let anti_box = BoxVariant::from(1).into_anti();
-        let mut disp = BoxDisplay::from(anti_box);
+        let mut disp = BoxDisplay::from_variant(anti_box, &store);
         disp.set_mode(ColorMode::Terminal);
         println!("{disp}");
         println!("{disp:#}");
 
         let a = maxel![[[1, 1], [1, 2], [2, 2], [2, 2]]];
-        let disp = BoxDisplay::from(a);
+        let disp = BoxDisplay::from_variant(a, &store);
         println!("{disp}");
         println!("{disp:#}");
 
         let a = vexel![[1, 2, 3, 3]];
-        let disp = BoxDisplay::from(a);
+        let disp = BoxDisplay::from_variant(a, &store);
         println!("{disp}");
         println!("{disp:#}");
     }
