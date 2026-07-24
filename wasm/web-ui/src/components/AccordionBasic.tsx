@@ -12,8 +12,9 @@ const items = [
 		trigger: "Background",
 		content: (
 			<div>
-				Box Arithmetic is a new approach to understanding arithmetic and much of
-				the mathematics built upon it. Two key ideas form its foundation:
+				Box Arithmetic is a new approach to arithmetic and much of the
+				mathematics built upon it, currently being developed by Norman J.
+				Wildberger. Two key ideas form its foundation:
 				<ul className="grid gap-2 py-2 text-sm">
 					<li className="flex gap-2">
 						<ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
