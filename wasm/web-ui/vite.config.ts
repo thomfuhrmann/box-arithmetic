@@ -7,6 +7,7 @@ import wasm from "vite-plugin-wasm";
 
 // https://vite.dev/config/
 export default defineConfig({
+	base: "/box-arithmetic/",
 	plugins: [react(), tailwindcss(), wasm(), topLevelAwait()],
 	resolve: {
 		alias: {
