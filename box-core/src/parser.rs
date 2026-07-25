@@ -120,40 +120,41 @@ fn subscript<'a>() -> impl Parser<'a, &'a [Token], Natural, extra::Err<Simple<'a
 
 fn colored_token<'a>(
     token: Token,
-) -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
-    just(token.clone()).to(Color::Black).or(just(Token::RedOpen)
-        .ignore_then(just(token))
-        .then_ignore(just(Token::RedClose))
-        .to(Color::Red))
+) -> Boxed<'a, 'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> {
+    just(token.clone())
+        .to(Color::Black)
+        .or(just(Token::RedOpen)
+            .ignore_then(just(token))
+            .then_ignore(just(Token::RedClose))
+            .to(Color::Red))
+        .boxed()
 }
 
-fn open_box<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
+fn open_box<'a>() -> Boxed<'a, 'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> {
     colored_token(Token::OpenBox)
 }
 
-fn close_box<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
+fn close_box<'a>() -> Boxed<'a, 'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> {
     colored_token(Token::CloseBox)
 }
 
-fn open_list<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
+fn open_list<'a>() -> Boxed<'a, 'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> {
     colored_token(Token::OpenList)
 }
 
-fn close_list<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
+fn close_list<'a>() -> Boxed<'a, 'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> {
     colored_token(Token::CloseList)
 }
 
-fn open_set<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
+fn open_set<'a>() -> Boxed<'a, 'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> {
     colored_token(Token::OpenSet)
 }
 
-fn close_set<'a>() -> impl Parser<'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> + Clone {
+fn close_set<'a>() -> Boxed<'a, 'a, &'a [Token], Color, extra::Err<Simple<'a, Token>>> {
     colored_token(Token::CloseSet)
 }
 
-fn box_parser<'a, P>(
-    parser: P,
-) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
+fn box_parser<'a, P>(parser: P) -> Boxed<'a, 'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>>
 where
     P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
 {
@@ -182,11 +183,10 @@ where
                 }
             },
         )
+        .boxed()
 }
 
-fn list_parser<'a, P>(
-    parser: P,
-) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
+fn list_parser<'a, P>(parser: P) -> Boxed<'a, 'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>>
 where
     P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
 {
@@ -215,11 +215,10 @@ where
                 }
             },
         )
+        .boxed()
 }
 
-fn set_parser<'a, P>(
-    parser: P,
-) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
+fn set_parser<'a, P>(parser: P) -> Boxed<'a, 'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>>
 where
     P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
 {
@@ -248,11 +247,10 @@ where
                 }
             },
         )
+        .boxed()
 }
 
-fn vexel_parser<'a, P>(
-    parser: P,
-) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
+fn vexel_parser<'a, P>(parser: P) -> Boxed<'a, 'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>>
 where
     P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
 {
@@ -280,12 +278,10 @@ where
             },
         );
 
-    box_parser(unixel_with_subscript)
+    box_parser(unixel_with_subscript).boxed()
 }
 
-fn maxel_parser<'a, P>(
-    parser: P,
-) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
+fn maxel_parser<'a, P>(parser: P) -> Boxed<'a, 'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>>
 where
     P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
 {
@@ -319,25 +315,25 @@ where
             },
         );
 
-    box_parser(pixel_with_subscript)
+    box_parser(pixel_with_subscript).boxed()
 }
 
-fn der_parser<'a, P>(
-    parser: P,
-) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
+fn der_parser<'a, P>(parser: P) -> Boxed<'a, 'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>>
 where
     P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
 {
-    just(Token::Der).ignore_then(
-        parser
-            .delimited_by(just(Token::OpenGroup), just(Token::CloseGroup))
-            .map(|expr| Expr::Der(Box::new(expr))),
-    )
+    just(Token::Der)
+        .ignore_then(
+            parser
+                .delimited_by(just(Token::OpenGroup), just(Token::CloseGroup))
+                .map(|expr| Expr::Der(Box::new(expr))),
+        )
+        .boxed()
 }
 
 fn der_multi_parser<'a, P>(
     parser: P,
-) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
+) -> Boxed<'a, 'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>>
 where
     P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
 {
@@ -351,11 +347,10 @@ where
                 .delimited_by(just(Token::OpenGroup), just(Token::CloseGroup)),
         )
         .map(|(val, num)| Expr::DerMulti(Box::new(val), num))
+        .boxed()
 }
 
-pub fn parser<'src>()
--> impl Parser<'src, &'src [Token], Expr, chumsky::extra::Err<chumsky::error::Simple<'src, Token>>>
-{
+pub fn parser<'src>() -> Boxed<'src, 'src, &'src [Token], Expr, extra::Err<Simple<'src, Token>>> {
     recursive(|p| {
         let just_num = select! {
             Token::Num(n) => Expr::Num(n),
@@ -375,7 +370,15 @@ pub fn parser<'src>()
             Color::Red => Expr::Anti(Box::new(Expr::Empty)),
         });
 
-        let var = select! { Token::Var(name) => Expr::Var(name) };
+        let just_var = select! { Token::Var(name) => Expr::Var(name) };
+        let var_sub = just_var.clone().or(just_var
+            .then(subscript())
+            .map(|(expr, sub)| Expr::Subscript(sub, Box::new(expr))));
+        let var_sub_col = just(Token::RedOpen)
+            .ignore_then(var_sub.clone())
+            .then_ignore(just(Token::RedClose))
+            .map(|expr| Expr::Anti(Box::new(expr)));
+        let var = var_sub.or(var_sub_col);
 
         let parenthesized = p
             .clone()
@@ -388,7 +391,8 @@ pub fn parser<'src>()
             .or(maxel_parser(p.clone()))
             .or(list_parser(p.clone()))
             .or(box_parser(p.clone()))
-            .or(parenthesized);
+            .or(parenthesized)
+            .boxed();
 
         let atom = just(Token::Minus)
             .repeated()
@@ -418,7 +422,6 @@ pub fn parser<'src>()
         let prod = caret_or.clone().foldl(
             just(Token::Multiply)
                 .or(just(Token::Divide))
-                // Bugfix: check for caret before falling back to a bare atom
                 .then(caret_or)
                 .repeated(),
             |lhs, (op, rhs)| match op {
@@ -457,7 +460,9 @@ pub fn parser<'src>()
             .or(sum.clone())
             .or(der_parser(sum.clone()))
             .or(der_multi_parser(sum))
+            .boxed()
     })
+    .boxed()
 }
 
 impl Expr {
@@ -685,8 +690,8 @@ mod tests {
 
         let input = "⌊<red>□</red>,□,□⌋";
         let val = eval_input(input).expect("eval_input failed");
-        assert_eq!(val.get_kind(0), BoxKind::Num);
-        assert_eq!(val.get_color(1), Color::Black);
+        let exp = BoxVariant::from(1);
+        assert_eq!(val, exp);
     }
 
     #[test]
