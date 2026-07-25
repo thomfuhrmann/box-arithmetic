@@ -322,9 +322,18 @@ pub fn parser<'src>()
 -> impl Parser<'src, &'src [Token], Expr, chumsky::extra::Err<chumsky::error::Simple<'src, Token>>>
 {
     recursive(|p| {
-        let number = select! {
+        let just_num = select! {
             Token::Number(n) => Expr::Num(n),
         };
+
+        let number = just(Token::RedOpen)
+            .ignore_then(any().filter_map(|token| match token {
+                Token::Number(num) => Some(num),
+                _ => None,
+            }))
+            .then_ignore(just(Token::RedClose))
+            .map(|num| Expr::Anti(Box::new(Expr::Num(num))))
+            .or(just_num);
 
         let empty_box = colored_token(Token::Empty).map(|col| match col {
             Color::Black => Expr::Empty,
@@ -642,6 +651,11 @@ mod tests {
         let input = "α*α";
         let val = eval_input(input).expect("eva_input failed");
         assert_eq!(val.get_kind(0), BoxKind::Polynum);
+
+        let input = "⌊<red>9</red>⌋";
+        let val = eval_input(input).expect("eval_input failed");
+        assert_eq!(val.get_kind(0), BoxKind::Polynum);
+        assert_eq!(val.get_color(1), Color::Red);
     }
 
     #[test]

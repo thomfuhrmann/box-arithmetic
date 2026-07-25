@@ -124,6 +124,7 @@ const ShiftEnterExtractor = Extension.create<
 
 				try {
 					const outputExpr: EvalOutput = calculator.eval_expr(inputExpr);
+
 					const formatRedTags = (str: string): string => {
 						if (!str) return "";
 						return str
