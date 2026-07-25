@@ -25963,7 +25963,7 @@ img.ProseMirror-separator {
                 key: `e8ta8j`
             }
         ]
-    ]), Xy = `/box-arithmetic/assets/wasm_bg-B6ohBS4w.wasm`, Zy = async (e = {}, t)=>{
+    ]), Xy = `/box-arithmetic/assets/wasm_bg-t9j3jTlJ.wasm`, Zy = async (e = {}, t)=>{
         let n;
         if (t.startsWith(`data:`)) {
             let r = t.replace(/^data:.*?base64,/, ``), i;
