@@ -21,7 +21,7 @@ pub mod parser;
 pub mod set;
 pub mod store;
 
-/// Traits for types of boxes
+/// Trait for types of boxes
 pub trait BoxType: Sized + Clone {
     const KIND: BoxKind;
 }

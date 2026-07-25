@@ -51,7 +51,7 @@ const MathSymbols = Extension.create({
 	},
 });
 
-export interface ShiftEnterExtractorOptions {
+interface ShiftEnterExtractorOptions {
 	calculator?: BoxCalculator | null | undefined;
 	onEvaluate?: (result: EvalOutput | null) => void;
 	onError?: (error: unknown) => void;
@@ -172,7 +172,7 @@ function toSubscript(s: string) {
 }
 
 // Extension for input of subscripts
-export const UnicodeSubscript = Extension.create({
+const UnicodeSubscript = Extension.create({
 	name: "unicodeSubscript",
 
 	addInputRules() {
@@ -190,7 +190,7 @@ export const UnicodeSubscript = Extension.create({
 });
 
 // Extension that converts input into anti-expression
-export const AntiRule = Extension.create({
+const AntiRule = Extension.create({
 	name: "antiRule",
 
 	addInputRules() {
@@ -553,7 +553,9 @@ function Editor() {
 									_ + number
 								</code>
 								for subscripts;{" "}
-								<code className="bg-muted px-1 rounded font-mono">\anti</code>
+								<code className="bg-muted px-1 rounded font-mono">
+									\anti + symbol
+								</code>
 								for anti-symbols; complete each command with{" "}
 								<code className="bg-muted px-1 rounded font-mono">space</code>
 							</span>
