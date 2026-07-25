@@ -1,7 +1,7 @@
-use box_core::BoxValue;
-use box_core::display::{BoxDisplay, OutputFormat};
-use box_core::parser::{Token, parser};
-use box_core::store::BoxStore;
+use box_arithmetic::BoxValue;
+use box_arithmetic::display::{BoxDisplay, OutputFormat};
+use box_arithmetic::parser::{Token, parser};
+use box_arithmetic::store::BoxStore;
 use chumsky::prelude::*;
 use logos::Logos;
 use serde::{Deserialize, Serialize};
