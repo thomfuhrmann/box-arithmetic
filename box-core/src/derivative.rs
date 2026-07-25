@@ -1,6 +1,6 @@
 use malachite::{Natural, base::num::arithmetic::traits::SaturatingSub};
 
-use crate::{BoxKind, BoxValue, MultinumBox, PolynumBox};
+use crate::{BoxKind, BoxValue, BoxVariant, MultinumBox, PolynumBox};
 
 impl BoxValue<PolynumBox> {
     /// Derivative of a polynumber
@@ -38,6 +38,7 @@ impl BoxValue<PolynumBox> {
         if max_depth == 1 {
             result.set_kind(0, BoxKind::Num);
         }
+
         result
     }
 }
@@ -46,6 +47,11 @@ impl BoxValue<MultinumBox> {
     /// Derivative of a multinumber
     pub fn derivative(self, index: impl Into<Natural>) -> Self {
         let index = index.into();
+
+        // special case if multinum is alpha
+        if index == 0 {
+            return self.cast::<PolynumBox>().derivative().cast();
+        }
 
         let mut result = BoxValue::<MultinumBox>::new();
         result.kinds.push(self.get_kind(0));
@@ -85,7 +91,30 @@ impl BoxValue<MultinumBox> {
         } else if max_depth == 0 {
             result.set_kind(0, BoxKind::Empty);
         }
+
         result
+    }
+}
+
+impl BoxVariant {
+    pub fn derivative(self) -> Self {
+        match self {
+            BoxVariant::Polynum(val) => BoxVariant::Polynum(val.derivative()),
+            _ => panic!(
+                "Derivative is not implemented for this kind: {:?}",
+                self.get_kind(0)
+            ),
+        }
+    }
+
+    pub fn derivative_multi(self, index: impl Into<Natural>) -> Self {
+        match self {
+            BoxVariant::Multinum(val) => BoxVariant::Multinum(val.derivative(index)),
+            _ => panic!(
+                "Derivative is not implemented for this kind: {:?}",
+                self.get_kind(0)
+            ),
+        }
     }
 }
 
@@ -121,6 +150,11 @@ mod tests {
         let der = multi.derivative(2_u32);
         let der = der.derivative(2_u32);
         let exp = BoxValue::from(6);
+        assert_eq!(der, exp.cast());
+
+        let poly = BoxValue::beta(0_u32);
+        let der = poly.derivative(0_u32);
+        let exp = BoxValue::from(1);
         assert_eq!(der, exp.cast());
     }
 }

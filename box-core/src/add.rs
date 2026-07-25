@@ -42,6 +42,8 @@ impl Add for BoxKind {
             (BoxKind::Num, BoxKind::Polynum) => BoxKind::Polynum,
             (BoxKind::Polynum, BoxKind::Num) => BoxKind::Polynum,
             (BoxKind::Polynum, BoxKind::Polynum) => BoxKind::Polynum,
+            (BoxKind::Num, BoxKind::Multinum) => BoxKind::Multinum,
+            (BoxKind::Multinum, BoxKind::Num) => BoxKind::Multinum,
             (BoxKind::Polynum, BoxKind::Multinum) => BoxKind::Multinum,
             (BoxKind::Multinum, BoxKind::Polynum) => BoxKind::Multinum,
             (BoxKind::Multinum, BoxKind::Multinum) => BoxKind::Multinum,

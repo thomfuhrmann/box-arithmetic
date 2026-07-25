@@ -1,6 +1,6 @@
 use malachite::{Integer, Natural, base::num::arithmetic::traits::UnsignedAbs};
 
-use crate::{BoxValue, BoxVariant, NumBox};
+use crate::{AnyBox, BoxKind, BoxValue, BoxVariant, Color, ListBox, NumBox};
 
 impl From<u32> for BoxValue<NumBox> {
     fn from(value: u32) -> Self {
@@ -155,5 +155,33 @@ impl From<Integer> for BoxVariant {
         }
 
         zero.wrap::<NumBox>(value.unsigned_abs()).into()
+    }
+}
+
+impl From<Vec<BoxValue<AnyBox>>> for BoxValue<AnyBox> {
+    fn from(value: Vec<BoxValue<AnyBox>>) -> Self {
+        let mut result = BoxValue::new();
+        result.kinds.push(BoxKind::Any);
+        result.colors.push(Color::Black);
+        result.multiplicities.push(malachite::Natural::from(1_u32));
+        result.lengths.push(1);
+        for any_box in value {
+            result.extend(any_box);
+        }
+        result
+    }
+}
+
+impl From<Vec<BoxValue<AnyBox>>> for BoxValue<ListBox> {
+    fn from(value: Vec<BoxValue<AnyBox>>) -> Self {
+        let mut result = BoxValue::new();
+        result.kinds.push(BoxKind::List);
+        result.colors.push(Color::Black);
+        result.multiplicities.push(malachite::Natural::from(1_u32));
+        result.lengths.push(1);
+        for any_box in value {
+            result.extend(any_box);
+        }
+        result
     }
 }

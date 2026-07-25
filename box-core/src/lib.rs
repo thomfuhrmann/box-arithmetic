@@ -242,6 +242,14 @@ impl BoxVariant {
         BoxValue::anti_alpha().into()
     }
 
+    pub fn beta(idx: impl Into<Natural>) -> Self {
+        BoxValue::beta(idx).into()
+    }
+
+    pub fn anti_beta(idx: impl Into<Natural>) -> Self {
+        BoxValue::anti_beta(idx).into()
+    }
+
     pub fn wrap<U: BoxType + IntoVariant>(self, mul: impl Into<Natural>) -> Self {
         dispatch!(self => wrap::<U>(mul)).into()
     }
@@ -392,34 +400,6 @@ impl<T: BoxType> Hash for BoxValue<T> {
         self.colors.hash(state);
         self.multiplicities.hash(state);
         self.lengths.hash(state);
-    }
-}
-
-impl From<Vec<BoxValue<AnyBox>>> for BoxValue<AnyBox> {
-    fn from(value: Vec<BoxValue<AnyBox>>) -> Self {
-        let mut result = BoxValue::new();
-        result.kinds.push(BoxKind::Any);
-        result.colors.push(Color::Black);
-        result.multiplicities.push(malachite::Natural::from(1_u32));
-        result.lengths.push(1);
-        for any_box in value {
-            result.extend(any_box);
-        }
-        result
-    }
-}
-
-impl From<Vec<BoxValue<AnyBox>>> for BoxValue<ListBox> {
-    fn from(value: Vec<BoxValue<AnyBox>>) -> Self {
-        let mut result = BoxValue::new();
-        result.kinds.push(BoxKind::List);
-        result.colors.push(Color::Black);
-        result.multiplicities.push(malachite::Natural::from(1_u32));
-        result.lengths.push(1);
-        for any_box in value {
-            result.extend(any_box);
-        }
-        result
     }
 }
 
@@ -802,43 +782,73 @@ impl BoxValue<PolynumBox> {
 impl BoxValue<MultinumBox> {
     /// Construct the variable beta
     pub fn beta(n: impl Into<Natural>) -> Self {
-        BoxValue {
-            kinds: vec![
-                BoxKind::Multinum,
-                BoxKind::Polynum,
-                BoxKind::Num,
-                BoxKind::Empty,
-            ],
-            colors: vec![Color::Black, Color::Black, Color::Black, Color::Black],
-            multiplicities: vec![
-                Natural::from(1_u32),
-                Natural::from(1_u32),
-                Natural::from(1_u32),
-                n.into(),
-            ],
-            lengths: vec![4, 3, 2, 1],
-            _marker: std::marker::PhantomData,
+        let n = n.into();
+        if n > 0 {
+            BoxValue {
+                kinds: vec![
+                    BoxKind::Multinum,
+                    BoxKind::Polynum,
+                    BoxKind::Num,
+                    BoxKind::Empty,
+                ],
+                colors: vec![Color::Black, Color::Black, Color::Black, Color::Black],
+                multiplicities: vec![
+                    Natural::from(1_u32),
+                    Natural::from(1_u32),
+                    Natural::from(1_u32),
+                    n,
+                ],
+                lengths: vec![4, 3, 2, 1],
+                _marker: std::marker::PhantomData,
+            }
+        } else {
+            BoxValue {
+                kinds: vec![BoxKind::Polynum, BoxKind::Num, BoxKind::Empty],
+                colors: vec![Color::Black, Color::Black, Color::Black],
+                multiplicities: vec![
+                    Natural::from(1_u32),
+                    Natural::from(1_u32),
+                    Natural::from(1_u32),
+                ],
+                lengths: vec![3, 2, 1],
+                _marker: std::marker::PhantomData,
+            }
         }
     }
 
     /// Construct the variable anti-beta
     pub fn anti_beta(n: impl Into<Natural>) -> Self {
-        BoxValue {
-            kinds: vec![
-                BoxKind::Multinum,
-                BoxKind::Polynum,
-                BoxKind::Num,
-                BoxKind::Empty,
-            ],
-            colors: vec![Color::Black, Color::Red, Color::Black, Color::Black],
-            multiplicities: vec![
-                Natural::from(1_u32),
-                Natural::from(1_u32),
-                Natural::from(1_u32),
-                n.into(),
-            ],
-            lengths: vec![4, 3, 2, 1],
-            _marker: std::marker::PhantomData,
+        let n = n.into();
+        if n > 0 {
+            BoxValue {
+                kinds: vec![
+                    BoxKind::Multinum,
+                    BoxKind::Polynum,
+                    BoxKind::Num,
+                    BoxKind::Empty,
+                ],
+                colors: vec![Color::Black, Color::Red, Color::Black, Color::Black],
+                multiplicities: vec![
+                    Natural::from(1_u32),
+                    Natural::from(1_u32),
+                    Natural::from(1_u32),
+                    n,
+                ],
+                lengths: vec![4, 3, 2, 1],
+                _marker: std::marker::PhantomData,
+            }
+        } else {
+            BoxValue {
+                kinds: vec![BoxKind::Polynum, BoxKind::Num, BoxKind::Empty],
+                colors: vec![Color::Black, Color::Red, Color::Black],
+                multiplicities: vec![
+                    Natural::from(1_u32),
+                    Natural::from(1_u32),
+                    Natural::from(1_u32),
+                ],
+                lengths: vec![3, 2, 1],
+                _marker: std::marker::PhantomData,
+            }
         }
     }
 }

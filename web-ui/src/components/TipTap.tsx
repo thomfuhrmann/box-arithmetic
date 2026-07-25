@@ -11,12 +11,12 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import { Tiptap, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import parse from "html-react-parser";
-import { CornerDownLeftIcon, GitBranchIcon, Subscript } from "lucide-react";
+import { CornerDownLeftIcon, GitBranchIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { BoxCalculator } from "wasm";
 import { AccordionBasic } from "./AccordionBasic";
+import Toolbar from "./Toolbar";
 import { Button } from "./ui/button";
-import { ButtonGroup } from "./ui/button-group";
 import {
 	Card,
 	CardAction,
@@ -29,7 +29,7 @@ import {
 import { Marker } from "./ui/marker";
 import { Separator } from "./ui/separator";
 
-const COLOR_RED = "#ff0000";
+export const COLOR_RED = "#ff0000";
 
 interface EvalOutput {
 	mixed: string;
@@ -260,16 +260,6 @@ function Editor() {
 
 	if (!editor) return null;
 
-	const insertSymbol = (symbol: string, color = "black") => {
-		editor
-			.chain()
-			.focus()
-			.setColor(color)
-			.insertContent(symbol)
-			.unsetColor()
-			.run();
-	};
-
 	return (
 		<div className="container mx-auto max-w-5xl p-6 space-y-6">
 			<Card>
@@ -312,225 +302,7 @@ function Editor() {
 				<Tiptap editor={editor}>
 					<Card className="overflow-hidden border shadow-sm focus-within:border-primary/50 transition-colors pt-0">
 						{/* Math Symbol Toolbar */}
-						<div className="flex flex-wrap items-center gap-1.5 border-b bg-muted/30 p-4 text-xs">
-							<ButtonGroup>
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("□")}
-									title="empty box"
-								>
-									□
-								</Button>
-
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("□", COLOR_RED)}
-									title="red empty box"
-									className="text-red-500"
-								>
-									□
-								</Button>
-							</ButtonGroup>
-
-							<Separator orientation="vertical" className="mx-2" />
-
-							<ButtonGroup>
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("⌊")}
-									title="open box"
-								>
-									⌊
-								</Button>
-
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("⌋")}
-									title="close box"
-								>
-									⌋
-								</Button>
-							</ButtonGroup>
-
-							<ButtonGroup>
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("⌈")}
-									title="open list"
-								>
-									⌈
-								</Button>
-
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("⌉")}
-									title="close list"
-								>
-									⌉
-								</Button>
-							</ButtonGroup>
-
-							<ButtonGroup>
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("{")}
-									title="open set"
-								>
-									{"{"}
-								</Button>
-
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("}")}
-									title="close set"
-								>
-									{"}"}
-								</Button>
-							</ButtonGroup>
-
-							<Separator orientation="vertical" className="mx-2" />
-
-							<ButtonGroup>
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("⌊", COLOR_RED)}
-									title="red open box"
-									className="text-red-500"
-								>
-									⌊
-								</Button>
-
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("⌋", COLOR_RED)}
-									title="red close box"
-									className="text-red-500"
-								>
-									⌋
-								</Button>
-							</ButtonGroup>
-
-							<ButtonGroup>
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("⌈", COLOR_RED)}
-									title="red open list"
-									className="text-red-500"
-								>
-									⌈
-								</Button>
-
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("⌉", COLOR_RED)}
-									title="red close list"
-									className="text-red-500"
-								>
-									⌉
-								</Button>
-							</ButtonGroup>
-
-							<ButtonGroup>
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("{", COLOR_RED)}
-									title="red open set"
-									className="text-red-500"
-								>
-									{"{"}
-								</Button>
-
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("}", COLOR_RED)}
-									title="red close set"
-									className="text-red-500"
-								>
-									{"}"}
-								</Button>
-							</ButtonGroup>
-
-							<Separator orientation="vertical" className="mx-2" />
-
-							<ButtonGroup>
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("α")}
-									title="alpha"
-								>
-									{"α"}
-								</Button>
-
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("α", COLOR_RED)}
-									title="red alpha"
-									className="text-red-500"
-								>
-									{"α"}
-								</Button>
-							</ButtonGroup>
-
-							<Separator orientation="vertical" className="mx-2" />
-
-							<ButtonGroup>
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("∪")}
-									title="union"
-								>
-									{"∪"}
-								</Button>
-
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("∩")}
-									title="intersection"
-								>
-									{"∩"}
-								</Button>
-							</ButtonGroup>
-
-							<Separator orientation="vertical" className="mx-2" />
-
-							<ButtonGroup>
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("\\anti ")}
-									title="anti"
-									className="text-red-500"
-								>
-									{"anti"}
-								</Button>
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("_")}
-									title="subscript"
-								>
-									<Subscript></Subscript>
-								</Button>
-							</ButtonGroup>
-						</div>
+						<Toolbar></Toolbar>
 
 						<CardContent>
 							<div className="w-full bg-background min-h-40">
@@ -625,6 +397,7 @@ function Editor() {
 					</CardContent>
 				</Card>
 			) : null}
+
 			{errorResult !== null ? (
 				<Card>
 					<CardHeader>

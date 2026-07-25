@@ -4,6 +4,8 @@ use chumsky::{prelude::*, util::MaybeRef};
 use logos::{Lexer, Logos};
 use malachite::Natural;
 
+// TODO: parse subscripts of betas
+
 fn parse_subscript(lex: &mut Lexer<Token>) -> Option<Natural> {
     let slice = lex.slice();
     let mut result = Natural::from(0_u32);
@@ -38,7 +40,7 @@ pub enum Token {
     #[token("□")]
     Empty,
     #[regex(r"[0-9]+", |lex|lex.slice().parse())]
-    Number(Natural),
+    Num(Natural),
     #[regex(r"[\p{Greek}a-zA-Z_][\p{Greek}a-zA-Z0-9_]*", |lex| lex.slice().to_string())]
     Var(String),
     #[token("+")]
@@ -105,6 +107,8 @@ pub enum Expr {
     Vexel(Vec<Expr>),
     Pixel(Box<Expr>, Box<Expr>),
     Maxel(Vec<Expr>),
+    Der(Box<Expr>),
+    DerMulti(Box<Expr>, Natural),
 }
 
 fn subscript<'a>() -> impl Parser<'a, &'a [Token], Natural, extra::Err<Simple<'a, Token>>> + Clone {
@@ -318,17 +322,48 @@ where
     box_parser(pixel_with_subscript)
 }
 
+fn der_parser<'a, P>(
+    parser: P,
+) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
+where
+    P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
+{
+    just(Token::Der).ignore_then(
+        parser
+            .delimited_by(just(Token::OpenGroup), just(Token::CloseGroup))
+            .map(|expr| Expr::Der(Box::new(expr))),
+    )
+}
+
+fn der_multi_parser<'a, P>(
+    parser: P,
+) -> impl Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone
+where
+    P: Parser<'a, &'a [Token], Expr, extra::Err<Simple<'a, Token>>> + Clone + 'a,
+{
+    let num = select! { Token::Num(num) => num };
+
+    just(Token::Der)
+        .ignore_then(
+            parser
+                .then_ignore(just(Token::Comma))
+                .then(num)
+                .delimited_by(just(Token::OpenGroup), just(Token::CloseGroup)),
+        )
+        .map(|(val, num)| Expr::DerMulti(Box::new(val), num))
+}
+
 pub fn parser<'src>()
 -> impl Parser<'src, &'src [Token], Expr, chumsky::extra::Err<chumsky::error::Simple<'src, Token>>>
 {
     recursive(|p| {
         let just_num = select! {
-            Token::Number(n) => Expr::Num(n),
+            Token::Num(n) => Expr::Num(n),
         };
 
         let number = just(Token::RedOpen)
             .ignore_then(any().filter_map(|token| match token {
-                Token::Number(num) => Some(num),
+                Token::Num(num) => Some(num),
                 _ => None,
             }))
             .then_ignore(just(Token::RedClose))
@@ -353,7 +388,6 @@ pub fn parser<'src>()
             .or(maxel_parser(p.clone()))
             .or(list_parser(p.clone()))
             .or(box_parser(p.clone()))
-            .or(set_parser(p.clone()))
             .or(parenthesized);
 
         let atom = just(Token::Minus)
@@ -376,14 +410,16 @@ pub fn parser<'src>()
         let caret = atom
             .clone()
             .then_ignore(just(Token::Caret))
-            .then(select! { Token::Number(n) => n })
+            .then(select! { Token::Num(n) => n })
             .map(|(base, n)| Expr::Caret(Box::new(base), n));
 
-        let prod = caret.clone().or(atom.clone()).foldl(
+        let caret_or = caret.or(atom);
+
+        let prod = caret_or.clone().foldl(
             just(Token::Multiply)
                 .or(just(Token::Divide))
                 // Bugfix: check for caret before falling back to a bare atom
-                .then(caret.or(atom))
+                .then(caret_or)
                 .repeated(),
             |lhs, (op, rhs)| match op {
                 Token::Multiply => Expr::Mul(Box::new(lhs), Box::new(rhs)),
@@ -404,17 +440,23 @@ pub fn parser<'src>()
             },
         );
 
-        sum.clone().foldl(
+        let set = set_parser(p.clone());
+        let set_op = set.clone().foldl(
             just(Token::Union)
                 .or(just(Token::Intersection))
-                .then(sum)
+                .then(set)
                 .repeated(),
             |lhs, (op, rhs)| match op {
                 Token::Union => Expr::Union(Box::new(lhs), Box::new(rhs)),
                 Token::Intersection => Expr::Intersection(Box::new(lhs), Box::new(rhs)),
                 _ => unreachable!(),
             },
-        )
+        );
+
+        set_op
+            .or(sum.clone())
+            .or(der_parser(sum.clone()))
+            .or(der_multi_parser(sum))
     })
 }
 
@@ -577,6 +619,14 @@ impl Expr {
                 }
                 BoxVariant::List(vs.into())
             }
+            Expr::Der(expr) => {
+                let val = expr.eval(store);
+                val.derivative()
+            }
+            Expr::DerMulti(expr, idx) => {
+                let val = expr.eval(store);
+                val.derivative_multi(idx.clone())
+            }
             _ => panic!("Not implemented"),
         }
     }
@@ -603,6 +653,7 @@ mod tests {
     fn eval_input(input: &str) -> Result<BoxVariant, ()> {
         let mut store = BoxStore::new();
         store.store_with_name("α", BoxValue::alpha());
+        store.store_with_name("β", BoxValue::beta(1_u32));
 
         let lexer = Token::lexer(input);
         let tokens = collect_tokens(lexer)?;
@@ -692,6 +743,29 @@ mod tests {
         let input = "{1,2,3}";
         let val = eval_input(input).expect("eva_input failed");
         assert_eq!(val.get_kind(0), BoxKind::Set);
+    }
+
+    #[test]
+    fn test_der() {
+        let input = "der(1+α)";
+        let val = eval_input(input).expect("eva_input failed");
+        let exp = BoxVariant::Polynum(BoxValue::from(1_u32).cast());
+        assert_eq!(val, exp);
+
+        let input = "der(1+α^2)";
+        let val = eval_input(input).expect("eva_input failed");
+        let exp = 2 * BoxVariant::alpha();
+        assert_eq!(val, exp);
+
+        let input = "der(1+β,1)";
+        let val = eval_input(input).expect("eva_input failed");
+        let exp = BoxVariant::Multinum(BoxValue::from(1_u32).cast());
+        assert_eq!(val, exp);
+
+        let input = "der(1+β^2,1)";
+        let val = eval_input(input).expect("eva_input failed");
+        let exp = 2 * BoxVariant::beta(1_u32);
+        assert_eq!(val, exp);
     }
 
     #[test]
