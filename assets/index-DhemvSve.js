@@ -31856,7 +31856,7 @@ img.ProseMirror-separator {
                                                     ` `,
                                                     (0, J.jsx)(`code`, {
                                                         className: `bg-muted px-1 rounded font-mono`,
-                                                        children: `\\anti`
+                                                        children: `\\anti + symbol`
                                                     }),
                                                     `for anti-symbols; complete each command with`,
                                                     ` `,
