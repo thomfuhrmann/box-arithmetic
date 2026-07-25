@@ -31472,7 +31472,7 @@ img.ProseMirror-separator {
                     find: /_(\d+)\s$/,
                     handler: ({ state: e, range: t, match: n })=>{
                         let [, r] = n;
-                        e.tr.insertText(`${Yw(r)} `, t.from, t.to);
+                        e.tr.insertText(`${Yw(r)}`, t.from, t.to);
                     }
                 })
             ];
@@ -31492,7 +31492,7 @@ img.ProseMirror-separator {
                         let s = o.create({
                             color: Gw
                         });
-                        e.tr.insertText(`${r} `, i, a).addMark(i, i + r.length, s).removeStoredMark(s.type);
+                        e.tr.insertText(r, i, a).addMark(i, i + r.length, s).removeStoredMark(s.type);
                     }
                 })
             ];
@@ -31786,26 +31786,6 @@ img.ProseMirror-separator {
                                                     })
                                                 ]
                                             }),
-                                            (0, J.jsxs)(Fw, {
-                                                children: [
-                                                    (0, J.jsx)(Aw, {
-                                                        variant: `outline`,
-                                                        size: `default`,
-                                                        onClick: ()=>o(`∪`, Gw),
-                                                        title: `red union`,
-                                                        className: `text-red-500`,
-                                                        children: `∪`
-                                                    }),
-                                                    (0, J.jsx)(Aw, {
-                                                        variant: `outline`,
-                                                        size: `default`,
-                                                        onClick: ()=>o(`∩`, Gw),
-                                                        title: `red intersection`,
-                                                        className: `text-red-500`,
-                                                        children: `∩`
-                                                    })
-                                                ]
-                                            }),
                                             (0, J.jsx)(Nw, {
                                                 orientation: `vertical`,
                                                 className: `mx-2`
@@ -31866,7 +31846,7 @@ img.ProseMirror-separator {
                                                         children: `\\rlist`
                                                     }),
                                                     ` `,
-                                                    `for quick brackets;`,
+                                                    `for brackets;`,
                                                     ` `,
                                                     (0, J.jsx)(`code`, {
                                                         className: `bg-muted px-1 rounded font-mono`,
@@ -31878,7 +31858,12 @@ img.ProseMirror-separator {
                                                         className: `bg-muted px-1 rounded font-mono`,
                                                         children: `\\anti`
                                                     }),
-                                                    `to convert symbol into anti`
+                                                    `for anti-symbols; complete each command with`,
+                                                    ` `,
+                                                    (0, J.jsx)(`code`, {
+                                                        className: `bg-muted px-1 rounded font-mono`,
+                                                        children: `space`
+                                                    })
                                                 ]
                                             }),
                                             (0, J.jsxs)(Aw, {
