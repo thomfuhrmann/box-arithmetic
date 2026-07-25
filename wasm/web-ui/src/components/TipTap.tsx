@@ -182,7 +182,7 @@ export const UnicodeSubscript = Extension.create({
 				handler: ({ state, range, match }) => {
 					const [, digits] = match;
 
-					state.tr.insertText(`${toSubscript(digits)} `, range.from, range.to);
+					state.tr.insertText(`${toSubscript(digits)}`, range.from, range.to);
 				},
 			}),
 		];
@@ -213,7 +213,7 @@ export const AntiRule = Extension.create({
 					const redMark = textStyleType.create({ color: COLOR_RED });
 
 					state.tr
-						.insertText(`${content} `, from, to)
+						.insertText(content, from, to)
 						.addMark(from, from + content.length, redMark)
 						.removeStoredMark(redMark.type);
 				},
@@ -509,28 +509,6 @@ function Editor() {
 								</Button>
 							</ButtonGroup>
 
-							<ButtonGroup>
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("∪", COLOR_RED)}
-									title="red union"
-									className="text-red-500"
-								>
-									{"∪"}
-								</Button>
-
-								<Button
-									variant="outline"
-									size="default"
-									onClick={() => insertSymbol("∩", COLOR_RED)}
-									title="red intersection"
-									className="text-red-500"
-								>
-									{"∩"}
-								</Button>
-							</ButtonGroup>
-
 							<Separator orientation="vertical" className="mx-2" />
 
 							<ButtonGroup>
@@ -570,13 +548,14 @@ function Editor() {
 								<code className="bg-muted px-1 rounded font-mono">\llist</code>
 								{", "}
 								<code className="bg-muted px-1 rounded font-mono">\rlist</code>{" "}
-								for quick brackets;{" "}
+								for brackets;{" "}
 								<code className="bg-muted px-1 rounded font-mono">
 									_ + number
 								</code>
 								for subscripts;{" "}
 								<code className="bg-muted px-1 rounded font-mono">\anti</code>
-								to convert symbol into anti
+								for anti-symbols; complete each command with{" "}
+								<code className="bg-muted px-1 rounded font-mono">space</code>
 							</span>
 							<Button
 								size="default"
