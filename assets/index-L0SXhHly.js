@@ -31144,8 +31144,44 @@ img.ProseMirror-separator {
                                     (0, J.jsx)(nb, {
                                         className: `mt-0.5 size-4 shrink-0 text-muted-foreground`
                                     }),
-                                    (0, J.jsx)(`span`, {
-                                        children: `Nested boxes must be separated by commas.`
+                                    (0, J.jsxs)(`span`, {
+                                        children: [
+                                            `Type`,
+                                            ` `,
+                                            (0, J.jsx)(`code`, {
+                                                className: `bg-muted px-1 rounded font-mono`,
+                                                children: `der(expr)`
+                                            }),
+                                            ` `,
+                                            `for derivatives of polynumbers`
+                                        ]
+                                    })
+                                ]
+                            }),
+                            (0, J.jsxs)(`li`, {
+                                className: `flex gap-2`,
+                                children: [
+                                    (0, J.jsx)(nb, {
+                                        className: `mt-0.5 size-4 shrink-0 text-muted-foreground`
+                                    }),
+                                    (0, J.jsxs)(`span`, {
+                                        children: [
+                                            `Type`,
+                                            ` `,
+                                            (0, J.jsx)(`code`, {
+                                                className: `bg-muted px-1 rounded font-mono`,
+                                                children: `der(expr, n)`
+                                            }),
+                                            ` `,
+                                            `for derivatives of multinumbers, where`,
+                                            ` `,
+                                            (0, J.jsx)(`code`, {
+                                                className: `bg-muted px-1 rounded font-mono`,
+                                                children: `n`
+                                            }),
+                                            ` `,
+                                            `specifies the index of β`
+                                        ]
                                     })
                                 ]
                             })
@@ -31282,17 +31318,6 @@ img.ProseMirror-separator {
                                     }),
                                     (0, J.jsx)(`span`, {
                                         children: `Division of boxes.`
-                                    })
-                                ]
-                            }),
-                            (0, J.jsxs)(`li`, {
-                                className: `flex gap-2`,
-                                children: [
-                                    (0, J.jsx)(nb, {
-                                        className: `mt-0.5 size-4 shrink-0 text-muted-foreground`
-                                    }),
-                                    (0, J.jsx)(`span`, {
-                                        children: `Derivatives of polynumbers and multinumbers.`
                                     })
                                 ]
                             }),
