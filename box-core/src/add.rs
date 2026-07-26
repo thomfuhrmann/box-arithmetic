@@ -31,6 +31,10 @@ impl_box_add!(NumBox, PolynumBox => PolynumBox);
 impl_box_add!(NumBox, MultinumBox => MultinumBox);
 impl_box_add!(PolynumBox, MultinumBox => MultinumBox);
 
+impl_box_add!(NumBox, AnyBox => AnyBox);
+impl_box_add!(PolynumBox, AnyBox => AnyBox);
+impl_box_add!(MultinumBox, AnyBox => AnyBox);
+
 impl Add for BoxKind {
     type Output = Self;
 
@@ -212,14 +216,6 @@ impl Add for BoxVariant {
             (BoxVariant::Maxel(l), BoxVariant::Maxel(r)) => BoxVariant::repack_raw(l + r),
             (l, r) => panic!("Type Error: Cannot add {:?} to {:?}", l, r),
         }
-    }
-}
-
-impl Sub for BoxVariant {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        self + (-1) * rhs
     }
 }
 

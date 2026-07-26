@@ -1,4 +1,4 @@
-use std::ops::Mul;
+use std::ops::{Mul, Neg};
 
 use malachite::{Natural, base::num::arithmetic::traits::SaturatingSub};
 use rapidhash::RapidHashMap;
@@ -114,6 +114,24 @@ impl<L: BoxType + BoxMul<R>, R: BoxType> Mul<BoxValue<R>> for &BoxValue<L> {
     type Output = BoxValue<L::Output>;
     fn mul(self, rhs: BoxValue<R>) -> Self::Output {
         self * &rhs
+    }
+}
+
+impl<T: BoxType + BoxMul<T>> Mul<BoxValue<T>> for Natural {
+    type Output = BoxValue<T::Output>;
+
+    #[inline]
+    fn mul(self, rhs: BoxValue<T>) -> Self::Output {
+        BoxValue::from(self).cast::<T>() * rhs
+    }
+}
+
+impl<T: BoxType + BoxMul<T>> Mul<Natural> for BoxValue<T> {
+    type Output = BoxValue<T::Output>;
+
+    #[inline]
+    fn mul(self, rhs: Natural) -> Self::Output {
+        self * BoxValue::from(rhs).cast::<T>()
     }
 }
 
@@ -300,6 +318,22 @@ impl Mul<i64> for BoxVariant {
     #[inline]
     fn mul(self, rhs: i64) -> Self::Output {
         self * BoxVariant::from(rhs)
+    }
+}
+
+impl<T: BoxType> Neg for BoxValue<T> {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        (-1) * self
+    }
+}
+
+impl Neg for BoxVariant {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        (-1) * self
     }
 }
 

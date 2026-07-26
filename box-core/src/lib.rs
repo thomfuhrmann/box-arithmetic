@@ -13,6 +13,7 @@ use rapidhash::fast::RandomState;
 pub mod add;
 pub mod derivative;
 pub mod display;
+pub mod div;
 pub mod from;
 pub mod function;
 pub mod maxel;
@@ -20,9 +21,10 @@ pub mod mul;
 pub mod parser;
 pub mod set;
 pub mod store;
+pub mod sub;
 
 /// Trait for types of boxes
-pub trait BoxType: Sized + Clone {
+pub trait BoxType: Sized + Clone + std::fmt::Debug {
     const KIND: BoxKind;
 }
 
@@ -648,9 +650,10 @@ impl<T: BoxType> BoxValue<T> {
         self.lengths.remove(index);
     }
 
-    /// Wrap a box in another box
+    /// Wrap a box in another box and apply the given multiplicity
     pub fn wrap<U: BoxType>(mut self, mul: impl Into<Natural>) -> BoxValue<U> {
-        self.set_multiplicity(0, mul);
+        let prev_mul = self.get_multiplicity(0);
+        self.set_multiplicity(0, mul.into() * prev_mul);
 
         let mut result = BoxValue::<U>::new();
         result.kinds.push(U::KIND);
