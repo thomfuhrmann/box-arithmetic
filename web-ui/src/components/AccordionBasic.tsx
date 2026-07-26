@@ -59,7 +59,23 @@ const items = [
 					</li>
 					<li className="flex gap-2">
 						<ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-						<span>Nested boxes must be separated by commas.</span>
+						<span>
+							Type{" "}
+							<code className="bg-muted px-1 rounded font-mono">der(expr)</code>{" "}
+							for derivatives of polynumbers
+						</span>
+					</li>
+					<li className="flex gap-2">
+						<ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+						<span>
+							Type{" "}
+							<code className="bg-muted px-1 rounded font-mono">
+								der(expr, n)
+							</code>{" "}
+							for derivatives of multinumbers, where{" "}
+							<code className="bg-muted px-1 rounded font-mono">n</code>{" "}
+							specifies the index of β
+						</span>
 					</li>
 				</ul>
 			</div>
@@ -146,10 +162,6 @@ const items = [
 					<li className="flex gap-2">
 						<ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
 						<span>Division of boxes.</span>
-					</li>
-					<li className="flex gap-2">
-						<ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-						<span>Derivatives of polynumbers and multinumbers.</span>
 					</li>
 					<li className="flex gap-2">
 						<ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
