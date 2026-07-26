@@ -32125,7 +32125,7 @@ img.ProseMirror-separator {
                             })
                         }),
                         (0, J.jsxs)($w, {
-                            className: `space-y-6`,
+                            className: `space-y-2`,
                             children: [
                                 (0, J.jsxs)(`div`, {
                                     children: [
@@ -32134,6 +32134,7 @@ img.ProseMirror-separator {
                                             children: `Mixed format`
                                         }),
                                         (0, J.jsx)(`div`, {
+                                            className: `overflow-x-auto pb-4`,
                                             children: Wy(e.mixed)
                                         })
                                     ]
@@ -32148,6 +32149,7 @@ img.ProseMirror-separator {
                                                     children: `Mixed format (with multiplicities)`
                                                 }),
                                                 (0, J.jsx)(`div`, {
+                                                    className: `overflow-x-auto pb-4`,
                                                     children: Wy(e.mixed_mul)
                                                 })
                                             ]
@@ -32162,6 +32164,7 @@ img.ProseMirror-separator {
                                             children: `Box format`
                                         }),
                                         (0, J.jsx)(`div`, {
+                                            className: `overflow-x-auto pb-4`,
                                             children: Wy(e.boxed)
                                         })
                                     ]
@@ -32176,6 +32179,7 @@ img.ProseMirror-separator {
                                                     children: `Box format (with multiplicities)`
                                                 }),
                                                 (0, J.jsx)(`div`, {
+                                                    className: `overflow-x-auto pb-4`,
                                                     children: Wy(e.boxed_mul)
                                                 })
                                             ]
