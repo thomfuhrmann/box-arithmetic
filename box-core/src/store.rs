@@ -11,7 +11,7 @@ pub struct BoxStore {
     pub boxes: RapidHashMap<u64, BoxVariant>,
     /// Look up table for variable names
     pub vars: RapidHashMap<u64, String>,
-    /// Look up table for variable names
+    /// Inverse look up table for variable names
     pub rev_vars: RapidHashMap<String, u64>,
 }
 

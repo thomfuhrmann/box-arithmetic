@@ -29,6 +29,10 @@ impl_box_mul!(NumBox, PolynumBox => PolynumBox);
 impl_box_mul!(NumBox, MultinumBox => MultinumBox);
 impl_box_mul!(PolynumBox, MultinumBox => MultinumBox);
 
+impl_box_mul!(NumBox, AnyBox => AnyBox);
+impl_box_mul!(PolynumBox, AnyBox => AnyBox);
+impl_box_mul!(MultinumBox, AnyBox => AnyBox);
+
 impl<L: BoxType + BoxMul<R>, R: BoxType> Mul<BoxValue<R>> for BoxValue<L> {
     type Output = BoxValue<L::Output>;
 

@@ -412,10 +412,12 @@ function Editor() {
 						<CardTitle>Evaluation Result</CardTitle>
 					</CardHeader>
 
-					<CardContent className="space-y-6">
+					<CardContent className="space-y-2">
 						<div>
 							<h4 className="mb-2 text-sm font-medium">Mixed format</h4>
-							<div>{parse(evalResult.mixed)}</div>
+							<div className="overflow-x-auto pb-4">
+								{parse(evalResult.mixed)}
+							</div>
 						</div>
 
 						{evalResult.mixed !== evalResult.mixed_mul && (
@@ -425,7 +427,9 @@ function Editor() {
 									<h4 className="mb-2 text-sm font-medium">
 										Mixed format (with multiplicities)
 									</h4>
-									<div>{parse(evalResult.mixed_mul)}</div>
+									<div className="overflow-x-auto pb-4">
+										{parse(evalResult.mixed_mul)}
+									</div>
 								</div>
 							</>
 						)}
@@ -434,7 +438,9 @@ function Editor() {
 
 						<div>
 							<h4 className="mb-2 text-sm font-medium">Box format</h4>
-							<div>{parse(evalResult.boxed)}</div>
+							<div className="overflow-x-auto pb-4">
+								{parse(evalResult.boxed)}
+							</div>
 						</div>
 
 						{evalResult.boxed !== evalResult.boxed_mul && (
@@ -444,7 +450,9 @@ function Editor() {
 									<h4 className="mb-2 text-sm font-medium">
 										Box format (with multiplicities)
 									</h4>
-									<div>{parse(evalResult.boxed_mul)}</div>
+									<div className="overflow-x-auto pb-4">
+										{parse(evalResult.boxed_mul)}
+									</div>
 								</div>
 							</>
 						)}
