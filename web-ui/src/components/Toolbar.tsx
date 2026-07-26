@@ -196,6 +196,30 @@ function Toolbar() {
 				</Button>
 			</ButtonGroup>
 
+			<ButtonGroup>
+				<Button
+					variant="outline"
+					size="default"
+					onClick={() => insertSymbol("β_")}
+					title="beta"
+				>
+					{"β"}
+				</Button>
+
+				<Button
+					variant="outline"
+					size="default"
+					onClick={() => {
+						insertSymbol("β", COLOR_RED);
+						insertSymbol("_", COLOR_RED);
+					}}
+					title="red beta"
+					className="text-red-500"
+				>
+					{"β"}
+				</Button>
+			</ButtonGroup>
+
 			<Separator orientation="vertical" className="mx-2" />
 
 			<ButtonGroup>

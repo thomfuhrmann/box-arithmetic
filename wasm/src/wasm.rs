@@ -41,6 +41,7 @@ impl BoxCalculator {
 
         let mut store = BoxStore::new();
         store.store_with_name("α", BoxValue::alpha());
+        store.store_with_name("β", BoxValue::beta(1_u32));
 
         Self { store }
     }

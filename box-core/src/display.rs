@@ -224,6 +224,73 @@ fn box_display(box_display: &BoxDisplay, f: &mut Formatter<'_>) -> std::fmt::Res
     write!(f, "{}", close)
 }
 
+fn write_alpha(
+    f: &mut Formatter<'_>,
+    child: BoxDisplay,
+    name: String,
+    first: bool,
+) -> std::fmt::Result {
+    let col = child.value.get_color(0);
+    let mul = child.value.get_multiplicity(0);
+
+    let op = if first {
+        if col == Color::Red { "-" } else { "" }
+    } else {
+        if col == Color::Red { " - " } else { " + " }
+    };
+
+    let exp = child.value.get_multiplicity(1);
+    if mul > 1 {
+        write!(f, "{op}{mul}*{name}")?;
+    } else {
+        write!(f, "{op}{name}")?;
+    };
+    if exp > 1 {
+        write!(f, "^{exp}")?;
+    }
+
+    Ok(())
+}
+
+fn write_num(f: &mut Formatter<'_>, child: BoxDisplay, first: bool) -> std::fmt::Result {
+    let mul = child.value.get_multiplicity(0);
+    let col = child.value.get_color(0);
+    let op = if first {
+        if col == Color::Red { "-" } else { "" }
+    } else {
+        if col == Color::Red { " - " } else { " + " }
+    };
+    write!(f, "{op}{mul}")
+}
+
+fn write_beta(
+    f: &mut Formatter<'_>,
+    child: BoxDisplay,
+    name: String,
+    first: bool,
+) -> std::fmt::Result {
+    let col = child.value.get_color(0);
+    let mul = child.value.get_multiplicity(0);
+    let op = if first {
+        if col == Color::Red { "-" } else { "" }
+    } else {
+        if col == Color::Red { " - " } else { " + " }
+    };
+    let exp = child.value.get_multiplicity(1);
+    let idx = child.value.get_multiplicity(2);
+    if mul > 1 {
+        write!(f, "{op}{mul}*{name}")?;
+    } else {
+        write!(f, "{op}{name}")?;
+    };
+    write!(f, "{}", to_subscript(idx))?;
+    if exp > 1 {
+        write!(f, "^{exp}")?;
+    }
+
+    Ok(())
+}
+
 fn mixed_display(box_display: &BoxDisplay, f: &mut Formatter<'_>) -> std::fmt::Result {
     let kind = box_display.value.get_kind(0);
     let is_anti = box_display.value.is_anti();
@@ -246,34 +313,53 @@ fn mixed_display(box_display: &BoxDisplay, f: &mut Formatter<'_>) -> std::fmt::R
         let alpha = BoxVariant::alpha();
         let hash = box_display.store.boxes.hasher().hash_one(alpha);
         let name = box_display.store.fetch_name(hash);
-        if let Some(name) = name {
-            let mut first = true;
-            for child in box_display.clone() {
-                let kind = child.value.get_kind(0);
-                let col = child.value.get_color(0);
-                let mul = child.value.get_multiplicity(0);
-                let op = if first {
-                    if col == Color::Red { "-" } else { "" }
+        let mut first = true;
+        for mut child in box_display.clone() {
+            let kind = child.value.get_kind(0);
+            if kind == BoxKind::Num {
+                if let Some(name) = name.clone() {
+                    write_alpha(f, child, name.clone(), first)?;
                 } else {
-                    if col == Color::Red { " - " } else { " + " }
-                };
-                if kind == BoxKind::Num {
-                    let exp = child.value.get_multiplicity(1);
-                    if mul > 1 {
-                        write!(f, "{op}{mul}*{name}")?;
-                    } else {
-                        write!(f, "{op}{name}")?;
-                    };
-                    if exp > 1 {
-                        write!(f, "^{exp}")?;
-                    }
-                } else {
-                    write!(f, "{op}{mul}")?;
+                    child.set_format(OutputFormat::Boxed);
+                    write!(f, "{child:#}")?;
                 }
-                first = false;
+            } else {
+                write_num(f, child, first)?;
             }
-            return write!(f, "");
+            first = false;
         }
+        return Ok(());
+    } else if kind == BoxKind::Multinum {
+        let beta = BoxVariant::beta(1_u32);
+        let hash = box_display.store.boxes.hasher().hash_one(beta);
+        let name_beta = box_display.store.fetch_name(hash);
+
+        let alpha = BoxVariant::alpha();
+        let hash = box_display.store.boxes.hasher().hash_one(alpha);
+        let name_alpha = box_display.store.fetch_name(hash);
+        let mut first = true;
+        for mut child in box_display.clone() {
+            let kind = child.value.get_kind(0);
+            if kind == BoxKind::Polynum {
+                if let Some(name_beta) = name_beta.clone() {
+                    write_beta(f, child, name_beta.clone(), first)?;
+                } else {
+                    child.set_format(OutputFormat::Boxed);
+                    write!(f, "{child:#}")?;
+                }
+            } else if kind == BoxKind::Num {
+                if let Some(name_alpha) = name_alpha.clone() {
+                    write_alpha(f, child, name_alpha.clone(), first)?;
+                } else {
+                    child.set_format(OutputFormat::Boxed);
+                    write!(f, "{child:#}")?;
+                }
+            } else {
+                write_num(f, child, first)?;
+            }
+            first = false;
+        }
+        return Ok(());
     }
 
     let open = open_bracket(kind).colorize_token(mode, is_anti);
@@ -322,7 +408,7 @@ impl<'a> Display for BoxDisplay<'a> {
 mod tests {
 
     use crate::{
-        BoxVariant,
+        BoxValue, BoxVariant,
         display::{BoxDisplay, ColorMode, OutputFormat},
         maxel,
         store::BoxStore,
@@ -380,6 +466,42 @@ mod tests {
 
         let a = vexel![[1, 2, 3, 3]];
         let disp = BoxDisplay::from_variant(a, &store);
+        println!("{disp}");
+        println!("{disp:#}");
+    }
+
+    #[test]
+    fn test_display_multi() {
+        let mut store = BoxStore::new();
+        let alpha = BoxVariant::alpha();
+        store.store_with_name("α", alpha);
+        store.store_with_name("β", BoxValue::beta(1_u32));
+
+        let beta = BoxVariant::beta(0_u32);
+        let disp = BoxDisplay::from_variant(beta.clone(), &store);
+        println!("{disp}");
+        println!("{disp:#}");
+
+        let beta = BoxVariant::beta(1_u32);
+        let mut disp = BoxDisplay::from_variant(beta.clone(), &store);
+        println!("{disp}");
+        println!("{disp:#}");
+
+        disp.set_format(OutputFormat::Boxed);
+        println!("{disp}");
+        println!("{disp:#}");
+
+        let beta = BoxVariant::beta(2_u32);
+        let mut disp = BoxDisplay::from_variant(beta.clone(), &store);
+        println!("{disp}");
+        println!("{disp:#}");
+
+        disp.set_format(OutputFormat::Boxed);
+        println!("{disp}");
+        println!("{disp:#}");
+
+        let multi = BoxVariant::beta(2_u32) + BoxVariant::from(1) + BoxVariant::alpha();
+        let disp = BoxDisplay::from_variant(multi.clone(), &store);
         println!("{disp}");
         println!("{disp:#}");
     }

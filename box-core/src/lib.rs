@@ -767,7 +767,7 @@ impl BoxValue<PolynumBox> {
     pub fn anti_alpha() -> Self {
         BoxValue {
             kinds: vec![BoxKind::Polynum, BoxKind::Num, BoxKind::Empty],
-            colors: vec![Color::Black, Color::Red, Color::Black],
+            colors: vec![Color::Red, Color::Black, Color::Black],
             multiplicities: vec![
                 Natural::from(1_u32),
                 Natural::from(1_u32),
@@ -827,7 +827,7 @@ impl BoxValue<MultinumBox> {
                     BoxKind::Num,
                     BoxKind::Empty,
                 ],
-                colors: vec![Color::Black, Color::Red, Color::Black, Color::Black],
+                colors: vec![Color::Red, Color::Black, Color::Black, Color::Black],
                 multiplicities: vec![
                     Natural::from(1_u32),
                     Natural::from(1_u32),
@@ -840,7 +840,7 @@ impl BoxValue<MultinumBox> {
         } else {
             BoxValue {
                 kinds: vec![BoxKind::Polynum, BoxKind::Num, BoxKind::Empty],
-                colors: vec![Color::Black, Color::Red, Color::Black],
+                colors: vec![Color::Red, Color::Black, Color::Black],
                 multiplicities: vec![
                     Natural::from(1_u32),
                     Natural::from(1_u32),

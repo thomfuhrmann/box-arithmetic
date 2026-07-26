@@ -8,6 +8,7 @@ import {
 } from "@tiptap/core";
 import Color from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Tiptap, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import parse from "html-react-parser";
@@ -47,6 +48,8 @@ const MathSymbols = Extension.create({
 			textInputRule({ find: /\\rbox\s$/, replace: "⌋" }),
 			textInputRule({ find: /\\llist\s$/, replace: "⌈" }),
 			textInputRule({ find: /\\rlist\s$/, replace: "⌉" }),
+			textInputRule({ find: /\\alpha\s$/, replace: "α" }),
+			textInputRule({ find: /\\beta\s$/, replace: "β_" }),
 		];
 	},
 });
@@ -128,7 +131,7 @@ const ShiftEnterExtractor = Extension.create<
 					const formatRedTags = (str: string): string => {
 						if (!str) return "";
 						return str
-							.replaceAll("<red>", "<span style='color: rgb(255, 0, 0);'>")
+							.replaceAll("<red>", `<span style='color: ${COLOR_RED};'>`)
 							.replaceAll("</red>", "</span>");
 					};
 					const formattedOutput: EvalOutput = {
@@ -172,7 +175,7 @@ function toSubscript(s: string) {
 }
 
 // Extension for input of subscripts
-const UnicodeSubscript = Extension.create({
+export const UnicodeSubscript = Extension.create({
 	name: "unicodeSubscript",
 
 	addInputRules() {
@@ -181,41 +184,91 @@ const UnicodeSubscript = Extension.create({
 				find: /_(\d+)\s$/,
 				handler: ({ state, range, match }) => {
 					const [, digits] = match;
+					const text = toSubscript(digits);
+					const { tr, schema } = state;
 
-					state.tr.insertText(`${toSubscript(digits)}`, range.from, range.to);
+					tr.insertText(text, range.from, range.to);
+					const endPos = range.from + text.length;
+					tr.removeMark(range.from, endPos);
+
+					const colorType = schema.marks.textStyle;
+					if (colorType) {
+						tr.removeStoredMark(colorType);
+					}
 				},
 			}),
 		];
 	},
 });
 
+const parseExpression = (input: string): string => {
+	// Transform all subscript occurrences
+	return input.replace(/_(\d+)/g, (_, digits) => toSubscript(digits));
+};
+
 // Extension that converts input into anti-expression
 const AntiRule = Extension.create({
 	name: "antiRule",
-
 	addInputRules() {
 		return [
 			new InputRule({
-				// Matches \anti followed by non-whitespace characters, completed by typing a space
 				find: /\\anti\s+([^\s]+)\s$/,
 				handler: ({ state, range, match }) => {
-					const [, content] = match;
-					const { from, to } = range;
+					const [, rawContent] = match;
+					const { tr, schema } = state;
 
-					// Retrieve or resolve the textStyle mark type
-					const textStyleType = state.schema.marks.textStyle;
+					const parsedContent = parseExpression(rawContent);
+					const endPos = range.from + parsedContent.length;
 
-					if (!textStyleType) {
-						console.warn("TextStyle extension is required for AntiRule");
+					const textStyleType = schema.marks.textStyle;
+					if (!textStyleType) return;
+
+					tr.insertText(parsedContent, range.from, range.to)
+						.addMark(
+							range.from,
+							endPos,
+							textStyleType.create({ color: COLOR_RED }),
+						)
+						.removeStoredMark(textStyleType);
+				},
+			}),
+		];
+	},
+});
+
+export const DefaultCursorColor = Extension.create({
+	name: "defaultCursorColor",
+
+	addProseMirrorPlugins() {
+		return [
+			new Plugin({
+				key: new PluginKey("defaultCursorColor"),
+				appendTransaction(transactions, _oldState, newState) {
+					// Check if the cursor selection moved/changed
+					const selectionChanged = transactions.some((tr) => tr.selectionSet);
+
+					if (!selectionChanged) {
 						return;
 					}
 
-					const redMark = textStyleType.create({ color: COLOR_RED });
+					const { schema, storedMarks, tr } = newState;
+					const textStyleType = schema.marks.textStyle;
 
-					state.tr
-						.insertText(content, from, to)
-						.addMark(from, from + content.length, redMark)
-						.removeStoredMark(redMark.type);
+					if (!textStyleType) {
+						return;
+					}
+
+					// Determine active marks at cursor
+					const activeMarks = storedMarks || newState.selection.$from.marks();
+					const hasTextStyleType = activeMarks.some(
+						(m) => m.type === textStyleType,
+					);
+
+					// If a color mark is pending/inherited at the new cursor position, clear it
+					if (hasTextStyleType) {
+						tr.removeStoredMark(textStyleType);
+						return tr;
+					}
 				},
 			}),
 		];
@@ -248,6 +301,7 @@ function Editor() {
 			}),
 			UnicodeSubscript,
 			AntiRule,
+			DefaultCursorColor,
 		],
 		content: "",
 		autofocus: true,

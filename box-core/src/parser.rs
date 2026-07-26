@@ -4,7 +4,7 @@ use chumsky::{prelude::*, util::MaybeRef};
 use logos::{Lexer, Logos};
 use malachite::Natural;
 
-// TODO: parse subscripts of betas
+// TODO: parse superscripts
 
 fn parse_subscript(lex: &mut Lexer<Token>) -> Option<Natural> {
     let slice = lex.slice();
@@ -22,6 +22,34 @@ fn parse_subscript(lex: &mut Lexer<Token>) -> Option<Natural> {
             '₇' => 7,
             '₈' => 8,
             '₉' => 9,
+            _ => return None,
+        };
+
+        let digit = Natural::from(digit);
+        let base = Natural::from(10_u32);
+
+        result = base * result + digit;
+    }
+
+    Some(result)
+}
+
+fn parse_superscript(lex: &mut Lexer<Token>) -> Option<Natural> {
+    let slice = lex.slice();
+    let mut result = Natural::from(0_u32);
+
+    for ch in slice.chars() {
+        let digit: u32 = match ch {
+            '⁰' => 0,
+            '¹' => 1,
+            '²' => 2,
+            '³' => 3,
+            '⁴' => 4,
+            '⁵' => 5,
+            '⁶' => 6,
+            '⁷' => 7,
+            '⁸' => 8,
+            '⁹' => 9,
             _ => return None,
         };
 
@@ -77,6 +105,8 @@ pub enum Token {
     Comma,
     #[regex(r"[₀₁₂₃₄₅₆₇₈₉]+", parse_subscript)]
     Subscript(Natural),
+    #[regex("[⁰¹²³⁴⁵⁶⁷⁸⁹]+", parse_superscript)]
+    Superscript(Natural),
     #[token("<red>")]
     RedOpen,
     #[token("</red>")]
@@ -85,13 +115,23 @@ pub enum Token {
     Der,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum IndexPos {
+    Pre,
+    Post,
+}
+
 #[derive(Debug, Clone)]
 pub enum Expr {
     Empty,
     Num(Natural),
     Var(String),
     Neg(Box<Expr>),
-    Subscript(Natural, Box<Expr>),
+    Subscript {
+        pos: IndexPos,
+        expr: Box<Expr>,
+        index: Natural,
+    },
     Anti(Box<Expr>),
     Add(Box<Expr>, Box<Expr>),
     Sub(Box<Expr>, Box<Expr>),
@@ -112,10 +152,16 @@ pub enum Expr {
 }
 
 fn subscript<'a>() -> impl Parser<'a, &'a [Token], Natural, extra::Err<Simple<'a, Token>>> + Clone {
-    any().filter_map(|token| match token {
-        Token::Subscript(num) => Some(num),
-        _ => None,
-    })
+    select! {
+        Token::Subscript(num) => num,
+    }
+}
+
+fn superscript<'a>() -> impl Parser<'a, &'a [Token], Natural, extra::Err<Simple<'a, Token>>> + Clone
+{
+    select! {
+        Token::Superscript(num) => num,
+    }
 }
 
 fn colored_token<'a>(
@@ -178,7 +224,11 @@ where
                 };
 
                 match outer_sub {
-                    Some(num) => Expr::Subscript(num, Box::new(base_box)),
+                    Some(index) => Expr::Subscript {
+                        pos: IndexPos::Pre,
+                        expr: Box::new(base_box),
+                        index,
+                    },
                     None => base_box,
                 }
             },
@@ -210,7 +260,11 @@ where
                 };
 
                 match outer_sub {
-                    Some(num) => Expr::Subscript(num, Box::new(base_box)),
+                    Some(index) => Expr::Subscript {
+                        pos: IndexPos::Pre,
+                        expr: Box::new(base_box),
+                        index,
+                    },
                     None => base_box,
                 }
             },
@@ -242,7 +296,11 @@ where
                 };
 
                 match outer_sub {
-                    Some(num) => Expr::Subscript(num, Box::new(base_box)),
+                    Some(index) => Expr::Subscript {
+                        pos: IndexPos::Pre,
+                        expr: Box::new(base_box),
+                        index,
+                    },
                     None => base_box,
                 }
             },
@@ -272,7 +330,11 @@ where
                 };
 
                 match outer_sub {
-                    Some(num) => Expr::Subscript(num, Box::new(base_box)),
+                    Some(index) => Expr::Subscript {
+                        pos: IndexPos::Pre,
+                        expr: Box::new(base_box),
+                        index,
+                    },
                     None => base_box,
                 }
             },
@@ -309,7 +371,11 @@ where
                 };
 
                 match outer_sub {
-                    Some(num) => Expr::Subscript(num, Box::new(base_box)),
+                    Some(index) => Expr::Subscript {
+                        pos: IndexPos::Pre,
+                        expr: Box::new(base_box),
+                        index,
+                    },
                     None => base_box,
                 }
             },
@@ -352,17 +418,11 @@ where
 
 pub fn parser<'src>() -> Boxed<'src, 'src, &'src [Token], Expr, extra::Err<Simple<'src, Token>>> {
     recursive(|p| {
-        let just_num = select! {
-            Token::Num(n) => Expr::Num(n),
-        };
+        let just_num = select! { Token::Num(num) => Expr::Num(num) };
 
-        let number = just(Token::RedOpen)
-            .ignore_then(any().filter_map(|token| match token {
-                Token::Num(num) => Some(num),
-                _ => None,
-            }))
-            .then_ignore(just(Token::RedClose))
-            .map(|num| Expr::Anti(Box::new(Expr::Num(num))))
+        let number = just_num
+            .delimited_by(just(Token::RedOpen), just(Token::RedClose))
+            .map(|expr| Expr::Anti(Box::new(expr)))
             .or(just_num);
 
         let empty_box = colored_token(Token::Empty).map(|col| match col {
@@ -371,14 +431,20 @@ pub fn parser<'src>() -> Boxed<'src, 'src, &'src [Token], Expr, extra::Err<Simpl
         });
 
         let just_var = select! { Token::Var(name) => Expr::Var(name) };
-        let var_sub = just_var.clone().or(just_var
-            .then(subscript())
-            .map(|(expr, sub)| Expr::Subscript(sub, Box::new(expr))));
-        let var_sub_col = just(Token::RedOpen)
-            .ignore_then(var_sub.clone())
-            .then_ignore(just(Token::RedClose))
-            .map(|expr| Expr::Anti(Box::new(expr)));
-        let var = var_sub.or(var_sub_col);
+        let base_or_anti = just_var
+            .delimited_by(just(Token::RedOpen), just(Token::RedClose))
+            .map(|expr| Expr::Anti(Box::new(expr)))
+            .or(just_var);
+        let var = base_or_anti
+            .then(subscript().or_not())
+            .map(|(expr, sub)| match sub {
+                Some(index) => Expr::Subscript {
+                    pos: IndexPos::Post,
+                    expr: Box::new(expr),
+                    index,
+                },
+                None => expr,
+            });
 
         let parenthesized = p
             .clone()
@@ -400,61 +466,78 @@ pub fn parser<'src>() -> Boxed<'src, 'src, &'src [Token], Expr, extra::Err<Simpl
             .then(subscript().or_not())
             .then(base_atom)
             .map(|((minuses, num), expr)| {
-                let mut expr = if let Some(num) = num {
-                    Expr::Subscript(num, Box::new(expr))
-                } else {
-                    expr
+                let expr = match num {
+                    Some(index) => Expr::Subscript {
+                        pos: IndexPos::Pre,
+                        expr: Box::new(expr),
+                        index,
+                    },
+                    None => expr,
                 };
-                for _ in minuses {
-                    expr = Expr::Neg(Box::new(expr));
-                }
-                expr
-            });
+                minuses
+                    .into_iter()
+                    .fold(expr, |acc, _| Expr::Neg(Box::new(acc)))
+            })
+            .boxed();
 
         let caret = atom
             .clone()
-            .then_ignore(just(Token::Caret))
-            .then(select! { Token::Num(n) => n })
-            .map(|(base, n)| Expr::Caret(Box::new(base), n));
+            .then(
+                just(Token::Caret)
+                    .ignore_then(select! { Token::Num(n) => n })
+                    .or(superscript())
+                    .or_not(),
+            )
+            .map(|(base, exp)| match exp {
+                Some(n) => Expr::Caret(Box::new(base), n),
+                None => base,
+            });
 
-        let caret_or = caret.or(atom);
+        let prod = caret
+            .clone()
+            .foldl(
+                just(Token::Multiply)
+                    .or(just(Token::Divide))
+                    .then(caret)
+                    .repeated(),
+                |lhs, (op, rhs)| match op {
+                    Token::Multiply => Expr::Mul(Box::new(lhs), Box::new(rhs)),
+                    Token::Divide => Expr::Div(Box::new(lhs), Box::new(rhs)),
+                    _ => unreachable!(),
+                },
+            )
+            .boxed();
 
-        let prod = caret_or.clone().foldl(
-            just(Token::Multiply)
-                .or(just(Token::Divide))
-                .then(caret_or)
-                .repeated(),
-            |lhs, (op, rhs)| match op {
-                Token::Multiply => Expr::Mul(Box::new(lhs), Box::new(rhs)),
-                Token::Divide => Expr::Div(Box::new(lhs), Box::new(rhs)),
-                _ => unreachable!(),
-            },
-        );
-
-        let sum = prod.clone().foldl(
-            just(Token::Plus)
-                .or(just(Token::Minus))
-                .then(prod)
-                .repeated(),
-            |lhs, (op, rhs)| match op {
-                Token::Plus => Expr::Add(Box::new(lhs), Box::new(rhs)),
-                Token::Minus => Expr::Sub(Box::new(lhs), Box::new(rhs)),
-                _ => unreachable!(),
-            },
-        );
+        let sum = prod
+            .clone()
+            .foldl(
+                just(Token::Plus)
+                    .or(just(Token::Minus))
+                    .then(prod)
+                    .repeated(),
+                |lhs, (op, rhs)| match op {
+                    Token::Plus => Expr::Add(Box::new(lhs), Box::new(rhs)),
+                    Token::Minus => Expr::Sub(Box::new(lhs), Box::new(rhs)),
+                    _ => unreachable!(),
+                },
+            )
+            .boxed();
 
         let set = set_parser(p.clone());
-        let set_op = set.clone().foldl(
-            just(Token::Union)
-                .or(just(Token::Intersection))
-                .then(set)
-                .repeated(),
-            |lhs, (op, rhs)| match op {
-                Token::Union => Expr::Union(Box::new(lhs), Box::new(rhs)),
-                Token::Intersection => Expr::Intersection(Box::new(lhs), Box::new(rhs)),
-                _ => unreachable!(),
-            },
-        );
+        let set_op = set
+            .clone()
+            .foldl(
+                just(Token::Union)
+                    .or(just(Token::Intersection))
+                    .then(set)
+                    .repeated(),
+                |lhs, (op, rhs)| match op {
+                    Token::Union => Expr::Union(Box::new(lhs), Box::new(rhs)),
+                    Token::Intersection => Expr::Intersection(Box::new(lhs), Box::new(rhs)),
+                    _ => unreachable!(),
+                },
+            )
+            .boxed();
 
         set_op
             .or(sum.clone())
@@ -474,10 +557,16 @@ impl Expr {
             Expr::Var(name) => store
                 .fetch_box_by_name(name)
                 .expect("Undefined Var assignment"),
-            Expr::Subscript(n, v) => {
-                let mut variant = v.eval(store);
-                variant.set_multiplicity(0, n.clone());
-                variant
+            Expr::Subscript { pos, expr, index } => {
+                let mut val = expr.eval(store);
+                if *pos == IndexPos::Pre {
+                    val.set_multiplicity(0, index.clone());
+                } else {
+                    if val.get_kind(0) == BoxKind::Multinum {
+                        val.set_multiplicity(3, index.clone());
+                    }
+                }
+                val
             }
             Expr::Neg(rhs) => BoxVariant::Num(BoxValue::from(-1)) * rhs.eval(store),
             Expr::Add(lhs, rhs) => lhs.eval(store) + rhs.eval(store),
@@ -485,7 +574,7 @@ impl Expr {
             Expr::Sub(lhs, rhs) => {
                 lhs.eval(store) + BoxVariant::Num(BoxValue::from(-1)) * rhs.eval(store)
             }
-            // Expr::Div(lhs, rhs) => todo!(),
+            Expr::Div(_lhs, _rhs) => panic!("Division is not implemented yet!"),
             Expr::Caret(v, n) => {
                 let variant = v.eval(store);
                 if *n == 0 {
@@ -632,7 +721,6 @@ impl Expr {
                 let val = expr.eval(store);
                 val.derivative_multi(idx.clone())
             }
-            _ => panic!("Not implemented"),
         }
     }
 }
@@ -642,7 +730,7 @@ mod tests {
     use logos::{Lexer, Logos};
 
     use crate::{
-        BoxKind, BoxValue, BoxVariant, Color,
+        BoxKind, BoxValue, BoxVariant,
         display::BoxDisplay,
         parser::{Parser, Token, parser},
         store::BoxStore,
@@ -708,10 +796,20 @@ mod tests {
         let val = eval_input(input).expect("eva_input failed");
         assert_eq!(val.get_kind(0), BoxKind::Polynum);
 
-        let input = "⌊<red>9</red>⌋";
+        let input = "<red>α</red>";
         let val = eval_input(input).expect("eval_input failed");
-        assert_eq!(val.get_kind(0), BoxKind::Polynum);
-        assert_eq!(val.get_color(1), Color::Red);
+        let exp = BoxVariant::anti_alpha();
+        assert_eq!(val, exp);
+
+        let input = "<red>9</red>";
+        let val = eval_input(input).expect("eval_input failed");
+        let exp = BoxVariant::from(9_u32).into_anti();
+        assert_eq!(val, exp);
+
+        let input = "α²";
+        let val = eval_input(input).expect("eval_input failed");
+        let exp = BoxVariant::alpha() * BoxVariant::alpha();
+        assert_eq!(val, exp);
     }
 
     #[test]
@@ -719,6 +817,31 @@ mod tests {
         let input = "⌊⌊⌊□⌋⌋⌋";
         let val = eval_input(input).expect("eva_input failed");
         assert_eq!(val.get_kind(0), BoxKind::Multinum);
+
+        let input = "β₂";
+        let val = eval_input(input).expect("eval_input failed");
+        let exp = BoxVariant::beta(2_u32);
+        assert_eq!(val, exp);
+
+        let input = "<red>β</red>₂";
+        let val = eval_input(input).expect("eval_input failed");
+        let exp = BoxVariant::anti_beta(2_u32);
+        assert_eq!(val, exp);
+
+        let input = "β₂+1";
+        let val = eval_input(input).expect("eval_input failed");
+        let exp = BoxVariant::beta(2_u32) + BoxVariant::from(1_u32);
+        assert_eq!(val, exp);
+
+        let input = "<red>β</red>₂+1";
+        let val = eval_input(input).expect("eval_input failed");
+        let exp = BoxVariant::anti_beta(2_u32) + BoxVariant::from(1_u32);
+        assert_eq!(val, exp);
+
+        let input = "β₂²";
+        let val = eval_input(input).expect("eval_input failed");
+        let exp = BoxVariant::beta(2_u32) * BoxVariant::beta(2_u32);
+        assert_eq!(val, exp);
     }
 
     #[test]
