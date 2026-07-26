@@ -3,7 +3,7 @@ resolver = "3"
 members = ["box-core", "wasm"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "A crate for Box Arithmetic. This crate defines the fundamental data structure, a mathematical box, and associated methods for doing basic algebraic operations."
 categories = ["mathematics"]
