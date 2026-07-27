@@ -578,6 +578,19 @@ impl<T: BoxType> BoxValue<T> {
         self.extend(value);
     }
 
+    /// Get the first child by copying the elements into a new box
+    pub fn first_child(&self) -> BoxValue<AnyBox> {
+        let child_len = self.get_length(1) as usize;
+        let range = 1..1 + child_len;
+
+        let kinds = self.kinds[range.clone()].to_vec();
+        let colors = self.colors[range.clone()].to_vec();
+        let lengths = self.lengths[range.clone()].to_vec();
+        let mults = self.multiplicities[range].to_vec();
+
+        BoxValue::new_with(kinds, colors, mults, lengths)
+    }
+
     /// Return the k-th kind if it exists
     ///
     /// # Panics

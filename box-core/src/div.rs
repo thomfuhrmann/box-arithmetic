@@ -31,6 +31,7 @@ impl_box_div!(NumBox, PolynumBox => PolynumBox);
 impl_box_div!(NumBox, MultinumBox => MultinumBox);
 impl_box_div!(PolynumBox, MultinumBox => MultinumBox);
 
+// TODO: return quotient and remainder
 impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
     type Output = BoxValue<L::Output>;
 
@@ -51,120 +52,62 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
         };
 
         while self.get_length(0) > 1 {
-            let mut lhs_iter = self.clone().into_iter();
-            if let Some(dividend) = lhs_iter.next() {
-                let divisor_mul = divisor.get_multiplicity(0);
-                let mut dividend_mul = dividend.get_multiplicity(0);
+            // safe since length of self > 1
+            let dividend = self.first_child();
+            let divisor_mul = divisor.get_multiplicity(0);
+            let mut dividend_mul = dividend.get_multiplicity(0);
 
-                let dividend_kind = dividend.get_kind(0);
-                let divisor_kind = divisor.get_kind(0);
+            let dividend_kind = dividend.get_kind(0);
+            let divisor_kind = divisor.get_kind(0);
 
-                let dividend_col = dividend.get_color(0);
-                let divisor_col = divisor.get_color(0);
+            let dividend_col = dividend.get_color(0);
+            let divisor_col = divisor.get_color(0);
 
-                // TODO: handle colors
-                // case 1: both children are empty
-                if dividend_kind == BoxKind::Empty && divisor_kind == BoxKind::Empty {
-                    let mut mul = Natural::from(0_u32);
-                    while dividend_mul >= divisor_mul {
-                        dividend_mul -= divisor_mul.clone();
-                        mul += Natural::from(1_u32);
-                    }
-
-                    if dividend_mul == 0 {
-                        let mut val = BoxValue::zero();
-                        val.set_multiplicity(0, mul.clone());
-                        if divisor_col != dividend_col {
-                            val.set_color(0, Color::Red);
-                        }
-                        let struct_hash = val.hash_content(unique_children.hasher());
-                        unique_children.insert(struct_hash, val.cast());
-                    } else {
-                        return BoxValue::zero().cast();
-                    }
-
-                    // subtract first divisor child box
-                    self = if divisor_col != dividend_col {
-                        self - mul.clone() * BoxValue::from(divisor_mul).cast::<L>()
-                    } else {
-                        self + mul.clone() * BoxValue::from(divisor_mul).cast::<L>()
-                    };
-
-                    // subtract other divisor child boxes
-                    for divisor in rhs_iter.clone() {
-                        let wrapped = divisor.wrap::<L>(1_u32);
-                        self = if divisor_col != dividend_col {
-                            self - mul.clone() * wrapped
-                        } else {
-                            self + mul.clone() * wrapped
-                        };
-                    }
-                    continue;
+            // case 1: both children are empty
+            if dividend_kind == BoxKind::Empty && divisor_kind == BoxKind::Empty {
+                let mut mul = Natural::from(0_u32);
+                while dividend_mul >= divisor_mul {
+                    dividend_mul -= divisor_mul.clone();
+                    mul += Natural::from(1_u32);
                 }
 
-                // case 2: dividend child is number and divisor child is empty
-                if dividend_kind == BoxKind::Num && divisor_kind == BoxKind::Empty {
-                    let mut factor = BoxValue::alpha();
-
-                    let mut exp = dividend.get_multiplicity(1);
-                    while exp > 1 {
-                        factor = factor * BoxValue::alpha();
-                        exp -= Natural::from(1_u32);
+                if dividend_mul == 0 {
+                    let mut val = BoxValue::zero();
+                    val.set_multiplicity(0, mul.clone());
+                    if divisor_col != dividend_col {
+                        val.set_color(0, Color::Red);
                     }
-
-                    let mut mul = Natural::from(0_u32);
-                    while dividend_mul >= divisor_mul {
-                        dividend_mul -= divisor_mul.clone();
-                        mul += Natural::from(1_u32);
-                    }
-
-                    if dividend_mul == 0 {
-                        let mut val = BoxValue::one();
-                        val.set_multiplicity(0, mul.clone());
-                        val.set_multiplicity(1, factor.get_multiplicity(2));
-                        if divisor_col != dividend_col {
-                            val.set_color(0, Color::Red);
-                        }
-                        let struct_hash = val.hash_content(unique_children.hasher());
-                        unique_children.insert(struct_hash, val.cast());
-                    } else {
-                        return BoxValue::zero().cast();
-                    }
-
-                    // subtract first divisor child box
-                    self = if divisor_col != dividend_col {
-                        self - mul.clone()
-                            * factor.clone().cast::<L>()
-                            * BoxValue::from(divisor_mul).cast::<L>()
-                    } else {
-                        self + mul.clone()
-                            * factor.clone().cast::<L>()
-                            * BoxValue::from(divisor_mul).cast::<L>()
-                    };
-
-                    // subtract other divisor child boxes
-                    for divisor in rhs_iter.clone() {
-                        let wrapped = divisor.wrap::<L>(1_u32);
-                        self = if divisor_col != dividend_col {
-                            self - mul.clone() * factor.clone().cast::<L>() * wrapped
-                        } else {
-                            self + mul.clone() * factor.clone().cast::<L>() * wrapped
-                        };
-                    }
-                    continue;
+                    let struct_hash = val.hash_content(unique_children.hasher());
+                    unique_children.insert(struct_hash, val.cast());
+                } else {
+                    break;
                 }
 
-                // case 3: both child operands have at least depth 1
+                // subtract first divisor child box
+                self = if divisor_col == dividend_col {
+                    self - mul.clone() * BoxValue::from(divisor_mul).cast::<L>()
+                } else {
+                    self + mul.clone() * BoxValue::from(divisor_mul).cast::<L>()
+                };
+
+                // subtract other divisor child boxes
+                for divisor in rhs_iter.clone() {
+                    let wrapped = divisor.wrap::<L>(1_u32);
+                    self = if divisor_col == dividend_col {
+                        self - mul.clone() * wrapped
+                    } else {
+                        self + mul.clone() * wrapped
+                    };
+                }
+                continue;
+            }
+
+            // case 2: dividend child is number and divisor child is empty
+            if dividend_kind == BoxKind::Num && divisor_kind == BoxKind::Empty {
+                let exp = dividend.get_multiplicity(1);
+
                 let mut factor = BoxValue::alpha();
-
-                let exp_dividend = dividend.get_multiplicity(1);
-                let exp_divisor = divisor.get_multiplicity(1);
-                let mut exp = exp_dividend.saturating_sub(exp_divisor);
-
-                while exp > 1 {
-                    factor = factor * BoxValue::alpha();
-                    exp -= Natural::from(1_u32);
-                }
+                factor.set_multiplicity(2, exp);
 
                 let mut mul = Natural::from(0_u32);
                 while dividend_mul >= divisor_mul {
@@ -182,29 +125,93 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
                     let struct_hash = val.hash_content(unique_children.hasher());
                     unique_children.insert(struct_hash, val.cast());
                 } else {
-                    return BoxValue::zero().cast();
+                    break;
                 }
 
                 // subtract first divisor child box
-                self = if divisor_col != dividend_col {
+                self = if divisor_col == dividend_col {
                     self - mul.clone()
                         * factor.clone().cast::<L>()
-                        * divisor.clone().wrap::<L>(1_u32)
+                        * BoxValue::from(divisor_mul).cast::<L>()
                 } else {
                     self + mul.clone()
                         * factor.clone().cast::<L>()
-                        * divisor.clone().wrap::<L>(1_u32)
+                        * BoxValue::from(divisor_mul).cast::<L>()
                 };
 
                 // subtract other divisor child boxes
                 for divisor in rhs_iter.clone() {
                     let wrapped = divisor.wrap::<L>(1_u32);
-                    self = if divisor_col != dividend_col {
+                    self = if divisor_col == dividend_col {
                         self - mul.clone() * factor.clone().cast::<L>() * wrapped
                     } else {
                         self + mul.clone() * factor.clone().cast::<L>() * wrapped
                     };
                 }
+                continue;
+            }
+
+            // case 3: can not divide current pair
+            if divisor_kind == BoxKind::Num && dividend_kind == BoxKind::Empty {
+                self = self - BoxValue::from(dividend_mul).cast::<L>();
+                continue;
+            }
+
+            // case 4: both child operands have at least depth 1
+            let exp_dividend = dividend.get_multiplicity(1);
+            let exp_divisor = divisor.get_multiplicity(1);
+            let exp = exp_dividend.saturating_sub(exp_divisor);
+
+            let factor = if exp > 0 {
+                let mut factor = BoxValue::alpha();
+                factor.set_multiplicity(2, exp);
+                factor
+            } else {
+                BoxValue::one().cast()
+            };
+
+            let mut mul = Natural::from(0_u32);
+            while dividend_mul >= divisor_mul {
+                dividend_mul -= divisor_mul.clone();
+                mul += Natural::from(1_u32);
+            }
+
+            if dividend_mul == 0 {
+                let mut val = if factor.get_kind(0) == BoxKind::Polynum {
+                    let mut val = BoxValue::one();
+                    val.set_multiplicity(0, mul.clone());
+                    val.set_multiplicity(1, factor.get_multiplicity(2));
+                    val
+                } else {
+                    let mut val = BoxValue::zero();
+                    val.set_multiplicity(0, mul.clone());
+                    val.cast()
+                };
+
+                if divisor_col != dividend_col {
+                    val.set_color(0, Color::Red);
+                }
+                let struct_hash = val.hash_content(unique_children.hasher());
+                unique_children.insert(struct_hash, val.cast());
+            } else {
+                break;
+            }
+
+            // subtract first divisor child box
+            self = if divisor_col == dividend_col {
+                self - mul.clone() * factor.clone().cast::<L>() * divisor.clone().wrap::<L>(1_u32)
+            } else {
+                self + mul.clone() * factor.clone().cast::<L>() * divisor.clone().wrap::<L>(1_u32)
+            };
+
+            // subtract other divisor child boxes
+            for divisor in rhs_iter.clone() {
+                let wrapped = divisor.wrap::<L>(1_u32);
+                self = if divisor_col == dividend_col {
+                    self - mul.clone() * factor.clone().cast::<L>() * wrapped
+                } else {
+                    self + mul.clone() * factor.clone().cast::<L>() * wrapped
+                };
             }
         }
 
@@ -271,8 +278,18 @@ mod tests {
         let dividend =
             BoxVariant::from(6) - BoxVariant::alpha() - BoxVariant::alpha() * BoxVariant::alpha();
         let divisor = BoxVariant::from(3) + BoxVariant::alpha();
-
         let quot = dividend / divisor;
-        println!("{quot:?}");
+        let exp = BoxVariant::from(2) - BoxVariant::alpha();
+        assert_eq!(quot, exp);
+    }
+
+    #[test]
+    fn test_div_rem() {
+        let dividend =
+            BoxVariant::from(6) - BoxVariant::alpha() - BoxVariant::alpha() * BoxVariant::alpha();
+        let divisor = BoxVariant::alpha();
+        let quot = dividend / divisor;
+        let exp = -BoxVariant::from(1) - BoxVariant::alpha();
+        assert_eq!(quot, exp);
     }
 }
