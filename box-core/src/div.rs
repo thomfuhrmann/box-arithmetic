@@ -48,7 +48,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
 
         let mut rhs_iter = rhs.into_iter();
         let Some(divisor) = rhs_iter.next() else {
-            panic!("No divisor value: {:?}", rhs_iter);
+            panic!("Division by zero: {:?}", rhs_iter);
         };
 
         while self.get_length(0) > 1 {
@@ -63,7 +63,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
             let dividend_col = dividend.get_color(0);
             let divisor_col = divisor.get_color(0);
 
-            // case 1: both children are empty
+            // case 1: both are numbers
             if dividend_kind == BoxKind::Empty && divisor_kind == BoxKind::Empty {
                 let mut mul = Natural::from(0_u32);
                 while dividend_mul >= divisor_mul {
@@ -102,7 +102,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
                 continue;
             }
 
-            // case 2: dividend child is number and divisor child is empty
+            // case 2: dividend is polynum and divisor is num
             if dividend_kind == BoxKind::Num && divisor_kind == BoxKind::Empty {
                 let exp = dividend.get_multiplicity(1);
 
@@ -152,12 +152,45 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
             }
 
             // case 3: can not divide current pair
-            if divisor_kind == BoxKind::Num && dividend_kind == BoxKind::Empty {
+            if dividend_kind == BoxKind::Empty && divisor_kind == BoxKind::Num {
                 self = self - BoxValue::from(dividend_mul).cast::<L>();
                 continue;
             }
 
-            // case 4: both child operands have at least depth 1
+            // case 4
+
+            // test if they differ on a level that can not be modified by multiplication
+            let mut has_match = true;
+            let mut matching_dividend = BoxValue::zero().cast::<AnyBox>();
+            // only check for divisors that are at least polynumbers
+            if divisor.get_length(0) > 1 {
+                for divisor_child in divisor.clone().into_iter() {
+                    let divisor_child_hash = divisor_child.hash_content(unique_children.hasher());
+                    has_match = dividend.clone().into_iter().any(|dividend_child| {
+                        let eq = divisor_child_hash
+                            == dividend_child.hash_content(unique_children.hasher());
+                        if eq {
+                            matching_dividend = dividend_child.clone().wrap::<AnyBox>(1_u32);
+                            if dividend.get_color(0) == Color::Red {
+                                matching_dividend.set_color(0, Color::Red);
+                            }
+                        }
+                        eq
+                    });
+
+                    if !has_match {
+                        break;
+                    }
+                }
+            } else {
+                matching_dividend = dividend.clone();
+            }
+
+            if !has_match {
+                self = self - BoxValue::from(dividend_mul).cast::<L>();
+                continue;
+            }
+
             let exp_dividend = dividend.get_multiplicity(1);
             let exp_divisor = divisor.get_multiplicity(1);
             let exp = exp_dividend.saturating_sub(exp_divisor);
