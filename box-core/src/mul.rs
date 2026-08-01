@@ -3,7 +3,9 @@ use std::ops::{Mul, Neg};
 use malachite::{Natural, base::num::arithmetic::traits::SaturatingSub};
 use rapidhash::RapidHashMap;
 
-use crate::{AnyBox, BoxType, BoxValue, BoxVariant, Color, MultinumBox, NumBox, PolynumBox};
+use crate::{
+    AnyBox, BoxKind, BoxType, BoxValue, BoxVariant, Color, MultinumBox, NumBox, PolynumBox,
+};
 
 /// Trait for the output type of box multiplication
 pub trait BoxMul<Rhs = Self> {
@@ -47,6 +49,9 @@ impl<L: BoxType + BoxMul<R>, R: BoxType> Mul<BoxValue<R>> for BoxValue<L> {
         let lhs_kind = self.get_kind(0);
         let rhs_kind = rhs.get_kind(0);
 
+        let lhs_mul = self.get_multiplicity(0);
+        let rhs_mul = rhs.get_multiplicity(0);
+
         for left_child in self {
             for right_child in rhs.clone() {
                 let left_mul = left_child.get_multiplicity(0);
@@ -80,9 +85,9 @@ impl<L: BoxType + BoxMul<R>, R: BoxType> Mul<BoxValue<R>> for BoxValue<L> {
             }
         }
 
-        result.kinds.push(lhs_kind + rhs_kind);
-        result.colors.push(lhs_col + rhs_col);
-        result.multiplicities.push(Natural::from(1_u32));
+        result.kinds.push(lhs_kind * rhs_kind);
+        result.colors.push(lhs_col * rhs_col);
+        result.multiplicities.push(lhs_mul * rhs_mul);
         result.lengths.push(1);
 
         for raw_box in unique_children.into_values() {
@@ -338,6 +343,29 @@ impl Neg for BoxVariant {
 
     fn neg(self) -> Self::Output {
         (-1) * self
+    }
+}
+
+impl Mul for BoxKind {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (BoxKind::Empty, r) => r,
+            (l, BoxKind::Empty) => l,
+            (BoxKind::Num, BoxKind::Num) => BoxKind::Num,
+            (BoxKind::Num, BoxKind::Polynum) => BoxKind::Polynum,
+            (BoxKind::Polynum, BoxKind::Num) => BoxKind::Polynum,
+            (BoxKind::Polynum, BoxKind::Polynum) => BoxKind::Polynum,
+            (BoxKind::Num, BoxKind::Multinum) => BoxKind::Multinum,
+            (BoxKind::Multinum, BoxKind::Num) => BoxKind::Multinum,
+            (BoxKind::Polynum, BoxKind::Multinum) => BoxKind::Multinum,
+            (BoxKind::Multinum, BoxKind::Polynum) => BoxKind::Multinum,
+            (BoxKind::Multinum, BoxKind::Multinum) => BoxKind::Multinum,
+            (BoxKind::Vexel, BoxKind::Vexel) => BoxKind::Vexel,
+            (BoxKind::Maxel, BoxKind::Maxel) => BoxKind::Maxel,
+            (_, _) => BoxKind::Any,
+        }
     }
 }
 

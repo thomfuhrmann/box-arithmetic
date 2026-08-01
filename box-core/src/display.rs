@@ -11,11 +11,8 @@ impl<T: BoxType> std::fmt::Display for BoxValue<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Rows: {} | Kinds: {:?} | Colors: {:?} | Mults: {:?}",
-            self.lengths.first().unwrap_or(&0),
-            self.kinds,
-            self.colors,
-            self.multiplicities
+            "Lengths: {:?} | Kinds: {:?} | Colors: {:?} | Mults: {:?}",
+            self.lengths, self.kinds, self.colors, self.multiplicities
         )
     }
 }

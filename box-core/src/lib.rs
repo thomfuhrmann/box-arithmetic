@@ -8,7 +8,7 @@ use std::{
     ops::{Add, Mul},
 };
 
-use rapidhash::fast::RandomState;
+use rapidhash::{RapidHashMap, fast::RandomState};
 
 pub mod add;
 pub mod derivative;
@@ -663,6 +663,15 @@ impl<T: BoxType> BoxValue<T> {
         self.lengths.remove(index);
     }
 
+    /// Push a single row
+    pub fn push(&mut self, kind: BoxKind, color: Color, multiplicity: impl Into<Natural>) {
+        self.kinds.push(kind);
+        self.colors.push(color);
+        self.multiplicities.push(multiplicity.into());
+        self.lengths.push(1);
+        self.set_length(0, self.get_length(0) + 1);
+    }
+
     /// Wrap a box in another box and apply the given multiplicity
     pub fn wrap<U: BoxType>(mut self, mul: impl Into<Natural>) -> BoxValue<U> {
         let prev_mul = self.get_multiplicity(0);
@@ -912,6 +921,34 @@ impl<T: BoxType> IntoIterator for BoxValue<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         BoxValueIter::new(self)
+    }
+}
+
+impl<U: BoxType> FromIterator<BoxValue<AnyBox>> for BoxValue<U> {
+    fn from_iter<T: IntoIterator<Item = BoxValue<AnyBox>>>(iter: T) -> Self {
+        let mut result = BoxValue::new();
+        result.kinds.push(BoxKind::Any);
+        result.colors.push(Color::Black);
+        result.multiplicities.push(1_u32.into());
+        result.lengths.push(1);
+
+        let mut unique_children: RapidHashMap<u64, BoxValue<AnyBox>> = RapidHashMap::default();
+        for item in iter {
+            let struct_hash = item.hash_content(unique_children.hasher());
+            unique_children.insert(struct_hash, item.clone().cast());
+        }
+
+        for raw_box in unique_children.into_values() {
+            let mul = raw_box.get_multiplicity(0);
+            if mul == 0 {
+                continue;
+            }
+
+            result.extend(raw_box);
+        }
+
+        result.sort_immediate_children();
+        result
     }
 }
 
