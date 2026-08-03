@@ -401,5 +401,11 @@ mod tests {
         let prod = s1 * s2;
         let expected = BoxVariant::from(1) + (-1) * BoxVariant::alpha() * BoxVariant::alpha();
         assert_eq!(prod, expected);
+
+        let mut alpha = BoxValue::alpha();
+        alpha.set_multiplicity(2, 0_u32);
+        let prod = alpha * BoxValue::alpha();
+        let exp = BoxValue::alpha();
+        assert_eq!(prod, exp);
     }
 }
