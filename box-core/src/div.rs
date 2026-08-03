@@ -94,7 +94,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
                             && divisor_child.is_eq_content(&fact)
                         {
                             let dividend_child_mul = fact.get_multiplicity(0);
-                            let mut mul = dividend_child_mul.clone() / divisor_child_mul.clone();
+                            let mut mul = dividend_child_mul / divisor_child_mul.clone();
                             // reduce by one because exponent is additive not multiplicative
                             mul = mul.saturating_sub(Natural::from(1_u32));
                             fact.set_multiplicity(0, mul);
@@ -122,7 +122,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
 
             if !has_match {
                 // could not find a matching child - remove dividend and continue
-                self = self - dividend.clone().wrap::<L>(1_u32);
+                self = self - dividend.wrap::<L>(1_u32);
                 // TODO: add to remainder
                 continue;
             }
@@ -140,12 +140,9 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
         result.lengths.push(1);
 
         for raw_box in unique_children.into_values() {
-            let mul = raw_box.get_multiplicity(0);
-            if mul == 0 {
-                continue;
+            if raw_box.get_multiplicity(0) > 0 {
+                result.extend(raw_box);
             }
-
-            result.extend(raw_box);
         }
 
         result.sort_immediate_children();
