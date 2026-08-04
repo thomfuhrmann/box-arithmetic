@@ -79,6 +79,8 @@ pub enum Token {
     Multiply,
     #[token("/")]
     Divide,
+    #[token("%")]
+    Remainder,
     #[token("^")]
     Caret,
     #[token("∩")]
@@ -137,6 +139,7 @@ pub enum Expr {
     Sub(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
     Div(Box<Expr>, Box<Expr>),
+    Rem(Box<Expr>, Box<Expr>),
     Caret(Box<Expr>, Natural),
     Intersection(Box<Expr>, Box<Expr>),
     Union(Box<Expr>, Box<Expr>),
@@ -498,11 +501,13 @@ pub fn parser<'src>() -> Boxed<'src, 'src, &'src [Token], Expr, extra::Err<Simpl
             .foldl(
                 just(Token::Multiply)
                     .or(just(Token::Divide))
+                    .or(just(Token::Remainder))
                     .then(caret)
                     .repeated(),
                 |lhs, (op, rhs)| match op {
                     Token::Multiply => Expr::Mul(Box::new(lhs), Box::new(rhs)),
                     Token::Divide => Expr::Div(Box::new(lhs), Box::new(rhs)),
+                    Token::Remainder => Expr::Rem(Box::new(lhs), Box::new(rhs)),
                     _ => unreachable!(),
                 },
             )
@@ -574,7 +579,8 @@ impl Expr {
             Expr::Sub(lhs, rhs) => {
                 lhs.eval(store) + BoxVariant::Num(BoxValue::from(-1)) * rhs.eval(store)
             }
-            Expr::Div(_lhs, _rhs) => panic!("Division is not implemented yet!"),
+            Expr::Div(lhs, rhs) => lhs.eval(store) / rhs.eval(store),
+            Expr::Rem(lhs, rhs) => lhs.eval(store) % rhs.eval(store),
             Expr::Caret(v, n) => {
                 let variant = v.eval(store);
                 if *n == 0 {
@@ -841,6 +847,22 @@ mod tests {
         let input = "β₂²";
         let val = eval_input(input).expect("eval_input failed");
         let exp = BoxVariant::beta(2_u32) * BoxVariant::beta(2_u32);
+        assert_eq!(val, exp);
+    }
+
+    #[test]
+    fn test_div() {
+        let input = "α² / α";
+        let val = eval_input(input).expect("eval_input failed");
+        let exp = BoxVariant::alpha();
+        assert_eq!(val, exp);
+    }
+
+    #[test]
+    fn test_rem() {
+        let input = "(1 + α²) % α";
+        let val = eval_input(input).expect("eval_input failed");
+        let exp = BoxVariant::one();
         assert_eq!(val, exp);
     }
 
