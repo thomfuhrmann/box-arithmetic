@@ -698,6 +698,17 @@ impl<T: BoxType> BoxValue<T> {
         }
         self
     }
+
+    /// Create an iterator over mutable borrows
+    pub fn iter_mut<'a>(&'a mut self) -> BoxValueIterMut<'a, T> {
+        BoxValueIterMut {
+            kinds: &mut self.kinds[1..],
+            colors: &mut self.colors[1..],
+            multiplicities: &mut self.multiplicities[1..],
+            lengths: &mut self.lengths[1..],
+            _phantom: PhantomData,
+        }
+    }
 }
 
 impl BoxValue<AnyBox> {
@@ -935,16 +946,13 @@ impl<U: BoxType> FromIterator<BoxValue<AnyBox>> for BoxValue<U> {
         let mut unique_children: RapidHashMap<u64, BoxValue<AnyBox>> = RapidHashMap::default();
         for item in iter {
             let struct_hash = item.hash_content(unique_children.hasher());
-            unique_children.insert(struct_hash, item.clone().cast());
+            unique_children.insert(struct_hash, item);
         }
 
         for raw_box in unique_children.into_values() {
-            let mul = raw_box.get_multiplicity(0);
-            if mul == 0 {
-                continue;
+            if raw_box.get_multiplicity(0) != 0 {
+                result.extend(raw_box);
             }
-
-            result.extend(raw_box);
         }
 
         result.sort_immediate_children();
@@ -976,6 +984,112 @@ impl Iterator for BoxVariantIter {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(BoxVariant::repack_raw)
+    }
+}
+
+#[derive(Debug)]
+pub struct BoxValueIterMut<'a, T: BoxType> {
+    kinds: &'a mut [BoxKind],
+    colors: &'a mut [Color],
+    multiplicities: &'a mut [Natural],
+    lengths: &'a mut [u32],
+    _phantom: std::marker::PhantomData<T>,
+}
+
+#[derive(Debug)]
+pub struct BoxValueRefMut<'a, T: BoxType> {
+    pub kinds: &'a mut [BoxKind],
+    pub colors: &'a mut [Color],
+    pub multiplicities: &'a mut [Natural],
+    pub lengths: &'a mut [u32],
+    _marker: PhantomData<T>,
+}
+
+impl<'a, T: BoxType> BoxValueRefMut<'a, T> {
+    pub fn new(
+        kinds: &'a mut [BoxKind],
+        colors: &'a mut [Color],
+        multiplicities: &'a mut [Natural],
+        lengths: &'a mut [u32],
+    ) -> Self {
+        Self {
+            kinds,
+            colors,
+            multiplicities,
+            lengths,
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn hash_content(&self, random_state: &RandomState) -> u64 {
+        let mut hasher = random_state.build_hasher();
+
+        self.kinds.hash(&mut hasher);
+        self.colors.get(1..).unwrap_or(&[]).hash(&mut hasher);
+        self.multiplicities
+            .get(1..)
+            .unwrap_or(&[])
+            .hash(&mut hasher);
+        self.lengths.hash(&mut hasher);
+
+        hasher.finish()
+    }
+
+    pub fn is_eq_content(&self, other: &BoxValue<T>) -> bool {
+        let left_len = self.lengths.first().copied().unwrap_or(0) as usize;
+        let right_len = other.get_length(0) as usize;
+
+        if left_len != right_len {
+            return false;
+        }
+
+        let left_colors = self.colors.get(1..).unwrap_or(&[]);
+        let right_colors = other.colors.get(1..).unwrap_or(&[]);
+
+        let left_mults = self.multiplicities.get(1..).unwrap_or(&[]);
+        let right_mults = other.multiplicities.get(1..).unwrap_or(&[]);
+
+        let left_lens = self.lengths.get(1..).unwrap_or(&[]);
+        let right_lens = other.lengths.get(1..).unwrap_or(&[]);
+
+        self.kinds == other.kinds
+            && left_colors == right_colors
+            && left_mults == right_mults
+            && left_lens == right_lens
+    }
+}
+
+impl<'a, T: BoxType> Iterator for BoxValueIterMut<'a, T> {
+    type Item = BoxValueRefMut<'a, T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.lengths.is_empty() {
+            return None;
+        }
+
+        let child_len = self.lengths[0] as usize;
+
+        let kinds = std::mem::take(&mut self.kinds);
+        let colors = std::mem::take(&mut self.colors);
+        let multiplicities = std::mem::take(&mut self.multiplicities);
+        let lengths = std::mem::take(&mut self.lengths);
+
+        let (kinds_item, kinds_rest) = kinds.split_at_mut(child_len);
+        let (colors_item, colors_rest) = colors.split_at_mut(child_len);
+        let (mult_item, mult_rest) = multiplicities.split_at_mut(child_len);
+        let (lengths_item, lengths_rest) = lengths.split_at_mut(child_len);
+
+        self.kinds = kinds_rest;
+        self.colors = colors_rest;
+        self.multiplicities = mult_rest;
+        self.lengths = lengths_rest;
+
+        Some(BoxValueRefMut::new(
+            kinds_item,
+            colors_item,
+            mult_item,
+            lengths_item,
+        ))
     }
 }
 
