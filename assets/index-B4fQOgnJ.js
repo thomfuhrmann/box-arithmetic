@@ -26116,7 +26116,7 @@ img.ProseMirror-separator {
                 key: `e8ta8j`
             }
         ]
-    ]), sb = `/box-arithmetic/assets/wasm_bg-okPSe6SB.wasm`, cb = async (e = {}, t)=>{
+    ]), sb = `/box-arithmetic/assets/wasm_bg-BZKA0ofm.wasm`, cb = async (e = {}, t)=>{
         let n;
         if (t.startsWith(`data:`)) {
             let r = t.replace(/^data:.*?base64,/, ``), i;
@@ -31307,32 +31307,19 @@ img.ProseMirror-separator {
                         className: `mt-2`,
                         children: `The following features are planned but not yet fully implemented:`
                     }),
-                    (0, J.jsxs)(`ul`, {
+                    (0, J.jsx)(`ul`, {
                         className: `grid gap-2 py-2 text-sm`,
-                        children: [
-                            (0, J.jsxs)(`li`, {
-                                className: `flex gap-2`,
-                                children: [
-                                    (0, J.jsx)(nb, {
-                                        className: `mt-0.5 size-4 shrink-0 text-muted-foreground`
-                                    }),
-                                    (0, J.jsx)(`span`, {
-                                        children: `Division of boxes.`
-                                    })
-                                ]
-                            }),
-                            (0, J.jsxs)(`li`, {
-                                className: `flex gap-2`,
-                                children: [
-                                    (0, J.jsx)(nb, {
-                                        className: `mt-0.5 size-4 shrink-0 text-muted-foreground`
-                                    }),
-                                    (0, J.jsx)(`span`, {
-                                        children: `Saving expressions and assigning names to them.`
-                                    })
-                                ]
-                            })
-                        ]
+                        children: (0, J.jsxs)(`li`, {
+                            className: `flex gap-2`,
+                            children: [
+                                (0, J.jsx)(nb, {
+                                    className: `mt-0.5 size-4 shrink-0 text-muted-foreground`
+                                }),
+                                (0, J.jsx)(`span`, {
+                                    children: `Saving expressions and assigning names to them.`
+                                })
+                            ]
+                        })
                     })
                 ]
             })
