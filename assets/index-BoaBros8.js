@@ -31289,7 +31289,7 @@ img.ProseMirror-separator {
                                     className: `mt-0.5 size-4 shrink-0 text-muted-foreground`
                                 }),
                                 (0, J.jsx)(`span`, {
-                                    children: `Supported operators: +, -, *, ∪, ∩.`
+                                    children: `Supported operators: +, -, *, /, %, ∪, ∩.`
                                 })
                             ]
                         })
