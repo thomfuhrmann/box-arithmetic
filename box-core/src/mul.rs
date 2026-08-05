@@ -91,12 +91,9 @@ impl<L: BoxType + BoxMul<R>, R: BoxType> Mul<BoxValue<R>> for BoxValue<L> {
         result.lengths.push(1);
 
         for raw_box in unique_children.into_values() {
-            let mul = raw_box.get_multiplicity(0);
-            if mul == 0 {
-                continue;
+            if raw_box.get_multiplicity(0) != 0 {
+                result.extend(raw_box);
             }
-
-            result.extend(raw_box);
         }
 
         result.sort_immediate_children();

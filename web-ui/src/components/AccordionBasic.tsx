@@ -140,7 +140,7 @@ const items = [
 					</li>
 					<li className="flex gap-2">
 						<ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-						<span>Supported operators: +, -, *, ∪, ∩.</span>
+						<span>Supported operators: +, -, *, /, %, ∪, ∩.</span>
 					</li>
 				</ul>
 			</div>
