@@ -260,29 +260,34 @@ fn write_num(f: &mut Formatter<'_>, child: BoxDisplay, first: bool) -> std::fmt:
     write!(f, "{op}{mul}")
 }
 
-fn write_beta(
+fn write_betas(
     f: &mut Formatter<'_>,
-    child: BoxDisplay,
+    poly: BoxDisplay,
     name: String,
     first: bool,
 ) -> std::fmt::Result {
-    let col = child.value.get_color(0);
-    let mul = child.value.get_multiplicity(0);
+    let col = poly.value.get_color(0);
+    let mul = poly.value.get_multiplicity(0);
     let op = if first {
         if col == Color::Red { "-" } else { "" }
     } else {
         if col == Color::Red { " - " } else { " + " }
     };
-    let exp = child.value.get_multiplicity(1);
-    let idx = child.value.get_multiplicity(2);
+
     if mul > 1 {
-        write!(f, "{op}{mul}*{name}")?;
+        write!(f, "{op}{mul}")?;
     } else {
-        write!(f, "{op}{name}")?;
+        write!(f, "{op}")?;
     };
-    write!(f, "{}", to_subscript(idx))?;
-    if exp > 1 {
-        write!(f, "^{exp}")?;
+
+    for child in poly {
+        let exp = child.value.get_multiplicity(0);
+        let idx = child.value.get_multiplicity(1);
+        write!(f, "{name}")?;
+        write!(f, "{}", to_subscript(idx))?;
+        if exp > 1 {
+            write!(f, "^{exp}")?;
+        }
     }
 
     Ok(())
@@ -317,6 +322,7 @@ fn mixed_display(box_display: &BoxDisplay, f: &mut Formatter<'_>) -> std::fmt::R
                 if let Some(name) = name.clone() {
                     write_alpha(f, child, name.clone(), first)?;
                 } else {
+                    // fallback to default output format
                     child.set_format(OutputFormat::Boxed);
                     write!(f, "{child:#}")?;
                 }
@@ -334,13 +340,15 @@ fn mixed_display(box_display: &BoxDisplay, f: &mut Formatter<'_>) -> std::fmt::R
         let alpha = BoxVariant::alpha();
         let hash = box_display.store.boxes.hasher().hash_one(alpha);
         let name_alpha = box_display.store.fetch_name(hash);
+
         let mut first = true;
         for mut child in box_display.clone() {
             let kind = child.value.get_kind(0);
             if kind == BoxKind::Polynum {
                 if let Some(name_beta) = name_beta.clone() {
-                    write_beta(f, child, name_beta.clone(), first)?;
+                    write_betas(f, child, name_beta.clone(), first)?;
                 } else {
+                    // fallback to default output format
                     child.set_format(OutputFormat::Boxed);
                     write!(f, "{child:#}")?;
                 }
@@ -359,6 +367,7 @@ fn mixed_display(box_display: &BoxDisplay, f: &mut Formatter<'_>) -> std::fmt::R
         return Ok(());
     }
 
+    // switch to boxed display
     let open = open_bracket(kind).colorize_token(mode, is_anti);
     let close = close_bracket(kind).colorize_token(mode, is_anti);
 
@@ -498,6 +507,11 @@ mod tests {
         println!("{disp:#}");
 
         let multi = BoxVariant::beta(2_u32) + BoxVariant::from(1) + BoxVariant::alpha();
+        let disp = BoxDisplay::from_variant(multi.clone(), &store);
+        println!("{disp}");
+        println!("{disp:#}");
+
+        let multi = BoxVariant::from(2) * BoxVariant::beta(1_u32) * BoxVariant::beta(2_u32);
         let disp = BoxDisplay::from_variant(multi.clone(), &store);
         println!("{disp}");
         println!("{disp:#}");

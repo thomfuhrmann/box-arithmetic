@@ -856,6 +856,11 @@ mod tests {
         let val = eval_input(input).expect("eval_input failed");
         let exp = BoxVariant::alpha();
         assert_eq!(val, exp);
+
+        let input = "(β₁*β₂^2)/β₂";
+        let val = eval_input(input).expect("eval_input failed");
+        let exp = BoxVariant::beta(1_u32) * BoxVariant::beta(2_u32);
+        assert_eq!(val, exp);
     }
 
     #[test]

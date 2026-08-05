@@ -31,7 +31,6 @@ impl_box_div!(NumBox, PolynumBox => PolynumBox);
 impl_box_div!(NumBox, MultinumBox => MultinumBox);
 impl_box_div!(PolynumBox, MultinumBox => MultinumBox);
 
-// TODO: return quotient and remainder
 impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
     type Output = BoxValue<L::Output>;
 
@@ -268,15 +267,13 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
 
         let mut max_kind = BoxKind::Empty;
         for raw_box in unique_children_rem.into_values() {
-            let kind = raw_box.get_kind(0);
-            if kind > max_kind {
-                max_kind = kind;
-            }
+            max_kind = max_kind.max(raw_box.get_kind(0));
 
             if raw_box.get_multiplicity(0) > 0 {
                 result.extend(raw_box);
             }
         }
+
         match max_kind {
             BoxKind::Empty => {
                 if result.get_length(0) > 1 {
@@ -385,6 +382,15 @@ mod tests {
         let divisor = BoxVariant::alpha();
         let quot = dividend / divisor;
         let exp = 2 * BoxVariant::alpha();
+        assert_eq!(quot, exp);
+    }
+
+    #[test]
+    fn test_div_multi() {
+        let dividend = BoxVariant::beta(1_u32) * BoxVariant::beta(2_u32) * BoxVariant::beta(2_u32);
+        let divisor = BoxVariant::beta(2_u32);
+        let quot = dividend / divisor;
+        let exp = BoxVariant::beta(1_u32) * BoxVariant::beta(2_u32);
         assert_eq!(quot, exp);
     }
 

@@ -123,14 +123,11 @@ impl<L: BoxType + BoxAdd<R>, R: BoxType> Add<BoxValue<R>> for BoxValue<L> {
 
         let mut max_depth: u32 = 0;
         for child in unique_children.into_values() {
-            let mult = child.get_multiplicity(0);
-            if mult == 0 {
-                continue;
+            if child.get_multiplicity(0) != 0 {
+                let child_len = child.get_length(0);
+                max_depth = max_depth.max(child_len);
+                result.extend(child);
             }
-
-            let child_len = child.get_length(0);
-            max_depth = max_depth.max(child_len);
-            result.extend(child);
         }
 
         let kind = L::Output::KIND;
