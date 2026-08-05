@@ -387,7 +387,8 @@ mod tests {
 
     #[test]
     fn test_div_multi() {
-        let dividend = BoxVariant::beta(1_u32) * BoxVariant::beta(2_u32) * BoxVariant::beta(2_u32);
+        let dividend = BoxVariant::from(1_u32)
+            + BoxVariant::beta(1_u32) * BoxVariant::beta(2_u32) * BoxVariant::beta(2_u32);
         let divisor = BoxVariant::beta(2_u32);
         let quot = dividend / divisor;
         let exp = BoxVariant::beta(1_u32) * BoxVariant::beta(2_u32);

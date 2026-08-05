@@ -61,10 +61,10 @@ impl Add for BoxKind {
 impl BoxKind {
     pub fn get_kind_from_depth(depth: u32) -> BoxKind {
         match depth {
-            0 => BoxKind::Empty,
-            1 => BoxKind::Num,
-            2 => BoxKind::Polynum,
-            3 => BoxKind::Multinum,
+            1 => BoxKind::Empty,
+            2 => BoxKind::Num,
+            3 => BoxKind::Polynum,
+            4 => BoxKind::Multinum,
             _ => BoxKind::Any,
         }
     }
@@ -121,19 +121,29 @@ impl<L: BoxType + BoxAdd<R>, R: BoxType> Add<BoxValue<R>> for BoxValue<L> {
         self.add_child_boxes(&mut unique_children);
         rhs.add_child_boxes(&mut unique_children);
 
-        let mut max_depth: u32 = 0;
+        let mut max_kind = BoxKind::Empty;
         for child in unique_children.into_values() {
             if child.get_multiplicity(0) != 0 {
-                let child_len = child.get_length(0);
-                max_depth = max_depth.max(child_len);
+                max_kind = max_kind.max(child.get_kind(0));
                 result.extend(child);
             }
+        }
+
+        match max_kind {
+            BoxKind::Empty => {
+                if result.get_length(0) > 1 {
+                    max_kind = BoxKind::Num
+                }
+            }
+            BoxKind::Num => max_kind = BoxKind::Polynum,
+            BoxKind::Polynum => max_kind = BoxKind::Multinum,
+            _ => max_kind = BoxKind::Any,
         }
 
         let kind = L::Output::KIND;
         let new_kind =
             if kind == BoxKind::Num || kind == BoxKind::Polynum || kind == BoxKind::Multinum {
-                BoxKind::get_kind_from_depth(max_depth)
+                max_kind
             } else {
                 lhs_kind + rhs_kind
             };
@@ -219,7 +229,7 @@ impl Add for BoxVariant {
 #[cfg(test)]
 mod tests {
 
-    use crate::BoxVariant;
+    use crate::{BoxKind, BoxVariant};
 
     #[test]
     fn test_add() {
@@ -255,5 +265,15 @@ mod tests {
         let sum = (BoxVariant::from(1) + BoxVariant::alpha()) - BoxVariant::alpha();
         let exp = BoxVariant::from(1);
         assert_eq!(sum, exp);
+    }
+
+    #[test]
+    fn test_kind() {
+        let sum = BoxVariant::from(1) + BoxVariant::beta(1_u32);
+        assert_eq!(sum.get_kind(0), BoxKind::Multinum);
+
+        let multi = BoxVariant::from(1_u32)
+            + BoxVariant::beta(1_u32) * BoxVariant::beta(2_u32) * BoxVariant::beta(2_u32);
+        assert_eq!(multi.get_kind(0), BoxKind::Multinum);
     }
 }
