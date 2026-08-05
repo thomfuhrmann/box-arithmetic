@@ -52,7 +52,16 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
 
         let rhs_cast = rhs.cast::<L>();
 
-        while self.get_length(0) > 1 {
+        let mut curr_len = self.get_length(0);
+        let mut max_exp = (&self)
+            .into_iter()
+            .fold(Natural::from(0_u32), |mut acc, new| {
+                if new.lengths[0] > 1 && acc < new.multiplicities[1] {
+                    acc = new.multiplicities[1].clone();
+                }
+                acc
+            });
+        while curr_len > 1 {
             // safe since length of self > 1
             let first_dividend_child = self.first_child();
 
@@ -72,11 +81,11 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
 
             // balance second level
             let mut has_match = true;
-            for divisor_child in first_divisor_child.clone().into_iter() {
+            for div_grandchild in first_divisor_child.clone().into_iter() {
                 has_match = false;
 
-                let divisor_child_mul = divisor_child.get_multiplicity(0);
-                let divisor_child_hash = divisor_child.hash_content(unique_children.hasher());
+                let div_grandchild_mul = div_grandchild.get_multiplicity(0);
+                let div_grandchild_hash = div_grandchild.hash_content(unique_children.hasher());
 
                 let factor_kind = factor.get_kind(0);
                 let factor_col = factor.get_color(0);
@@ -84,11 +93,11 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
                 factor = factor
                     .into_iter()
                     .filter_map(|mut fact| {
-                        if divisor_child_hash == fact.hash_content(unique_children.hasher())
-                            && divisor_child.is_eq_content(&fact)
+                        if div_grandchild_hash == fact.hash_content(unique_children.hasher())
+                            && div_grandchild.is_eq_content(&fact)
                         {
                             let dividend_child_mul = fact.get_multiplicity(0);
-                            let mut mul = dividend_child_mul / divisor_child_mul.clone();
+                            let mut mul = dividend_child_mul / div_grandchild_mul.clone();
                             // reduce by one because exponent is additive not multiplicative
                             mul = mul.saturating_sub(Natural::from(1_u32));
 
@@ -126,11 +135,25 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
                 continue;
             }
 
-            let struct_hash = factor.hash_content(unique_children.hasher());
-            unique_children.insert(struct_hash, factor.clone().cast());
-
             // subtract
-            self = self - factor.wrap::<L>(1_u32) * rhs_cast.clone();
+            self = self - factor.clone().wrap::<L>(1_u32) * rhs_cast.clone();
+            let new_len = self.get_length(0);
+            let new_exp = (&self)
+                .into_iter()
+                .fold(Natural::from(0_u32), |mut acc, new| {
+                    if new.lengths[0] > 1 && acc < new.multiplicities[1] {
+                        acc = new.multiplicities[1].clone();
+                    }
+                    acc
+                });
+            if new_len > curr_len || new_exp > max_exp {
+                break;
+            }
+            curr_len = new_len;
+            max_exp = new_exp;
+
+            let struct_hash = factor.hash_content(unique_children.hasher());
+            unique_children.insert(struct_hash, factor.cast());
         }
 
         let mut result = BoxValue::new();
@@ -139,15 +162,26 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
         result.multiplicities.push(Natural::from(1_u32));
         result.lengths.push(1);
 
+        let mut max_kind = BoxKind::Empty;
         for raw_box in unique_children.into_values() {
+            max_kind = max_kind.max(raw_box.get_kind(0));
+
             if raw_box.get_multiplicity(0) > 0 {
                 result.extend(raw_box);
             }
         }
 
-        if result.get_length(0) == 2 {
-            result.set_kind(0, BoxKind::Num);
+        match max_kind {
+            BoxKind::Empty => {
+                if result.get_length(0) > 1 {
+                    max_kind = BoxKind::Num
+                }
+            }
+            BoxKind::Num => max_kind = BoxKind::Polynum,
+            BoxKind::Polynum => max_kind = BoxKind::Multinum,
+            _ => max_kind = BoxKind::Any,
         }
+        result.set_kind(0, max_kind);
 
         result.sort_immediate_children();
 
@@ -173,7 +207,16 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
 
         let rhs_cast = rhs.cast::<L>();
 
-        while self.get_length(0) > 1 {
+        let mut curr_len = self.get_length(0);
+        let mut max_exp = (&self)
+            .into_iter()
+            .fold(Natural::from(0_u32), |mut acc, new| {
+                if new.lengths[0] > 1 && acc < new.multiplicities[1] {
+                    acc = new.multiplicities[1].clone();
+                }
+                acc
+            });
+        while curr_len > 1 {
             // safe since length of self > 1
             let first_dividend_child = self.first_child();
 
@@ -197,11 +240,11 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
 
             // balance second level
             let mut has_match = true;
-            for divisor_child in first_divisor_child.clone().into_iter() {
+            for div_grandchild in first_divisor_child.clone().into_iter() {
                 has_match = false;
 
-                let divisor_child_mul = divisor_child.get_multiplicity(0);
-                let divisor_child_hash = divisor_child.hash_content(unique_children_rem.hasher());
+                let div_grandchild_mul = div_grandchild.get_multiplicity(0);
+                let div_grandchild_hash = div_grandchild.hash_content(unique_children_rem.hasher());
 
                 let factor_kind = factor.get_kind(0);
                 let factor_col = factor.get_color(0);
@@ -209,11 +252,11 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
                 factor = factor
                     .into_iter()
                     .filter_map(|mut fact| {
-                        if divisor_child_hash == fact.hash_content(unique_children_rem.hasher())
-                            && divisor_child.is_eq_content(&fact)
+                        if div_grandchild_hash == fact.hash_content(unique_children_rem.hasher())
+                            && div_grandchild.is_eq_content(&fact)
                         {
                             let dividend_child_mul = fact.get_multiplicity(0);
-                            let mut mul = dividend_child_mul / divisor_child_mul.clone();
+                            let mut mul = dividend_child_mul / div_grandchild_mul.clone();
                             // reduce by one because exponent is additive not multiplicative
                             mul = mul.saturating_sub(Natural::from(1_u32));
 
@@ -256,7 +299,23 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
             }
 
             // subtract
-            self = self - factor.wrap::<L>(1_u32) * rhs_cast.clone();
+            self = self - factor.clone().wrap::<L>(1_u32) * rhs_cast.clone();
+            let new_len = self.get_length(0);
+            let new_exp = (&self)
+                .into_iter()
+                .fold(Natural::from(0_u32), |mut acc, new| {
+                    if new.lengths[0] > 1 && acc < new.multiplicities[1] {
+                        acc = new.multiplicities[1].clone();
+                    }
+                    acc
+                });
+            if new_len > curr_len || new_exp > max_exp {
+                let struct_hash = first_dividend_child.hash_content(unique_children_rem.hasher());
+                unique_children_rem.insert(struct_hash, first_dividend_child.cast());
+                break;
+            }
+            curr_len = new_len;
+            max_exp = new_exp;
         }
 
         let mut result = BoxValue::new();
@@ -403,6 +462,12 @@ mod tests {
         let quot = dividend / divisor;
         let exp = -BoxVariant::from(1) - BoxVariant::alpha();
         assert_eq!(quot, exp);
+
+        let dividend = BoxVariant::beta(1_u32);
+        let divisor = BoxVariant::beta(1_u32) + BoxVariant::from(1_u32);
+        let quot = dividend / divisor;
+        let exp = BoxVariant::zero();
+        assert_eq!(quot, exp);
     }
 
     #[test]
@@ -419,5 +484,11 @@ mod tests {
         let rem = dividend % divisor;
         let exp = BoxVariant::from(6);
         assert_eq!(rem, exp);
+
+        let dividend = BoxVariant::beta(1_u32);
+        let divisor = BoxVariant::beta(1_u32) + BoxVariant::from(1_u32);
+        let quot = dividend % divisor;
+        let exp = BoxVariant::beta(1_u32);
+        assert_eq!(quot, exp);
     }
 }
