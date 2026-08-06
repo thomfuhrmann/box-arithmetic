@@ -515,5 +515,11 @@ mod tests {
         let disp = BoxDisplay::from_variant(multi.clone(), &store);
         println!("{disp}");
         println!("{disp:#}");
+
+        let multi = BoxVariant::beta(1_u32) * BoxVariant::beta(1_u32) * BoxVariant::beta(2_u32)
+            + BoxVariant::beta(1_u32) * BoxVariant::beta(2_u32) * BoxVariant::beta(2_u32);
+        let disp = BoxDisplay::from_variant(multi.clone(), &store);
+        println!("{disp}");
+        println!("{disp:#}");
     }
 }

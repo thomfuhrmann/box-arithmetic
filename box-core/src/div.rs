@@ -4,7 +4,8 @@ use malachite::{Natural, base::num::arithmetic::traits::SaturatingSub};
 use rapidhash::RapidHashMap;
 
 use crate::{
-    AnyBox, BoxKind, BoxType, BoxValue, BoxVariant, Color, MultinumBox, NumBox, PolynumBox,
+    AnyBox, BoxKind, BoxOrder, BoxType, BoxValue, BoxVariant, Color, MultinumBox, NumBox,
+    PolynumBox,
 };
 
 /// Trait for the output type of box division
@@ -31,6 +32,7 @@ impl_box_div!(NumBox, PolynumBox => PolynumBox);
 impl_box_div!(NumBox, MultinumBox => MultinumBox);
 impl_box_div!(PolynumBox, MultinumBox => MultinumBox);
 
+// TODO: current impl gives wrong power series expansion - move to highest terms
 impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
     type Output = BoxValue<L::Output>;
 
@@ -52,16 +54,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
 
         let rhs_cast = rhs.cast::<L>();
 
-        let mut curr_len = self.get_length(0);
-        let mut max_exp = (&self)
-            .into_iter()
-            .fold(Natural::from(0_u32), |mut acc, new| {
-                if new.lengths[0] > 1 && acc < new.multiplicities[1] {
-                    acc = new.multiplicities[1].clone();
-                }
-                acc
-            });
-        while curr_len > 1 {
+        while self.get_length(0) > 1 {
             // safe since length of self > 1
             let first_dividend_child = self.first_child();
 
@@ -137,21 +130,6 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
 
             // subtract
             self = self - factor.clone().wrap::<L>(1_u32) * rhs_cast.clone();
-            let new_len = self.get_length(0);
-            let new_exp = (&self)
-                .into_iter()
-                .fold(Natural::from(0_u32), |mut acc, new| {
-                    if new.lengths[0] > 1 && acc < new.multiplicities[1] {
-                        acc = new.multiplicities[1].clone();
-                    }
-                    acc
-                });
-            if new_len > curr_len || new_exp > max_exp {
-                break;
-            }
-            curr_len = new_len;
-            max_exp = new_exp;
-
             let struct_hash = factor.hash_content(unique_children.hasher());
             unique_children.insert(struct_hash, factor.cast());
         }
@@ -183,7 +161,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
         }
         result.set_kind(0, max_kind);
 
-        result.sort_immediate_children();
+        result.sort_immediate_children(BoxOrder::Lex);
 
         result
     }
@@ -207,16 +185,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
 
         let rhs_cast = rhs.cast::<L>();
 
-        let mut curr_len = self.get_length(0);
-        let mut max_exp = (&self)
-            .into_iter()
-            .fold(Natural::from(0_u32), |mut acc, new| {
-                if new.lengths[0] > 1 && acc < new.multiplicities[1] {
-                    acc = new.multiplicities[1].clone();
-                }
-                acc
-            });
-        while curr_len > 1 {
+        while self.get_length(0) > 1 {
             // safe since length of self > 1
             let first_dividend_child = self.first_child();
 
@@ -300,22 +269,6 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
 
             // subtract
             self = self - factor.clone().wrap::<L>(1_u32) * rhs_cast.clone();
-            let new_len = self.get_length(0);
-            let new_exp = (&self)
-                .into_iter()
-                .fold(Natural::from(0_u32), |mut acc, new| {
-                    if new.lengths[0] > 1 && acc < new.multiplicities[1] {
-                        acc = new.multiplicities[1].clone();
-                    }
-                    acc
-                });
-            if new_len > curr_len || new_exp > max_exp {
-                let struct_hash = first_dividend_child.hash_content(unique_children_rem.hasher());
-                unique_children_rem.insert(struct_hash, first_dividend_child.cast());
-                break;
-            }
-            curr_len = new_len;
-            max_exp = new_exp;
         }
 
         let mut result = BoxValue::new();
@@ -345,7 +298,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
         }
         result.set_kind(0, max_kind);
 
-        result.sort_immediate_children();
+        result.sort_immediate_children(BoxOrder::Lex);
 
         result
     }
@@ -466,7 +419,7 @@ mod tests {
         let dividend = BoxVariant::beta(1_u32);
         let divisor = BoxVariant::beta(1_u32) + BoxVariant::from(1_u32);
         let quot = dividend / divisor;
-        let exp = BoxVariant::zero();
+        let exp = BoxVariant::one();
         assert_eq!(quot, exp);
     }
 
@@ -488,7 +441,7 @@ mod tests {
         let dividend = BoxVariant::beta(1_u32);
         let divisor = BoxVariant::beta(1_u32) + BoxVariant::from(1_u32);
         let quot = dividend % divisor;
-        let exp = BoxVariant::beta(1_u32);
+        let exp = -BoxVariant::one();
         assert_eq!(quot, exp);
     }
 }

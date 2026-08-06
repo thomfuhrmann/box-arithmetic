@@ -4,7 +4,8 @@ use malachite::{Natural, base::num::arithmetic::traits::SaturatingSub};
 use rapidhash::RapidHashMap;
 
 use crate::{
-    AnyBox, BoxKind, BoxType, BoxValue, BoxVariant, Color, MultinumBox, NumBox, PolynumBox,
+    AnyBox, BoxKind, BoxOrder, BoxType, BoxValue, BoxVariant, Color, MultinumBox, NumBox,
+    PolynumBox,
 };
 
 /// Trait for the output type of box multiplication
@@ -96,7 +97,7 @@ impl<L: BoxType + BoxMul<R>, R: BoxType> Mul<BoxValue<R>> for BoxValue<L> {
             }
         }
 
-        result.sort_immediate_children();
+        result.sort_immediate_children(BoxOrder::Lex);
         result
     }
 }

@@ -405,6 +405,13 @@ impl<T: BoxType> Hash for BoxValue<T> {
     }
 }
 
+#[derive(Debug)]
+pub enum BoxOrder {
+    Lex,
+    GradedLex,
+    GradedRevLex,
+}
+
 impl<T: BoxType> BoxValue<T> {
     /// Initialize an empty raw box
     pub fn new() -> Self {
@@ -479,7 +486,7 @@ impl<T: BoxType> BoxValue<T> {
     }
 
     /// Sort the immediate child boxes of this box
-    pub fn sort_immediate_children(&mut self) {
+    pub fn sort_immediate_children(&mut self, _order: BoxOrder) {
         if self.lengths.is_empty() {
             return;
         }
@@ -538,7 +545,7 @@ impl<T: BoxType> BoxValue<T> {
         let mut sorted_lens = Vec::with_capacity(content_len);
         let mut sorted_mults = Vec::with_capacity(content_len);
 
-        for &(start, len) in &child_ranges {
+        for &(start, len) in child_ranges.iter().rev() {
             let range = start..(start + len);
             sorted_kinds.extend_from_slice(&self.kinds[range.clone()]);
             sorted_colors.extend_from_slice(&self.colors[range.clone()]);
@@ -944,7 +951,7 @@ impl<U: BoxType> FromIterator<BoxValue<AnyBox>> for BoxValue<U> {
             }
         }
 
-        result.sort_immediate_children();
+        result.sort_immediate_children(BoxOrder::Lex);
         result
     }
 }
