@@ -11,8 +11,8 @@ export default defineConfig({
 	plugins: [react(), tailwindcss(), wasm(), topLevelAwait()],
 	resolve: {
 		alias: {
-			"@": path.resolve(__dirname, "./src"),
-			wasm: path.resolve(__dirname, "../wasm/pkg"),
+			"@": path.resolve(import.meta.dirname, "./src"),
+			wasm: path.resolve(import.meta.dirname, "../wasm/pkg"),
 		},
 	},
 	build: {
