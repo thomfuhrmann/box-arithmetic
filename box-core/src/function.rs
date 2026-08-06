@@ -81,21 +81,21 @@ mod tests {
         assert!(f_box.is_function());
 
         let dom = vec![
-            BoxValue::from(0).cast::<AnyBox>(),
-            BoxValue::from(3).cast::<AnyBox>(),
-            BoxValue::from(4).cast::<AnyBox>(),
-            BoxValue::from(2).cast::<AnyBox>(),
             BoxValue::alpha().cast::<AnyBox>(),
+            BoxValue::from(2).cast::<AnyBox>(),
+            BoxValue::from(4).cast::<AnyBox>(),
+            BoxValue::from(3).cast::<AnyBox>(),
+            BoxValue::from(0).cast::<AnyBox>(),
         ];
         assert_eq!(f_box.domain(), dom);
 
         let poly = BoxValue::from(6) + BoxValue::alpha() * BoxValue::alpha();
         let range = vec![
-            BoxValue::from(3).cast::<AnyBox>(),
             BoxValue::from(1).cast::<AnyBox>(),
-            BoxValue::from(5).cast::<AnyBox>(),
             poly.cast::<AnyBox>(),
+            BoxValue::from(5).cast::<AnyBox>(),
             BoxValue::from(1).cast::<AnyBox>(),
+            BoxValue::from(3).cast::<AnyBox>(),
         ];
         assert_eq!(f_box.range(), range);
 

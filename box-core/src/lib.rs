@@ -205,57 +205,70 @@ impl BoxVariant {
         dispatch!(self => lengths[idx] = len);
     }
 
+    /// Return the underlying box as any box
     #[inline]
     pub fn into_any_raw(self) -> BoxValue<AnyBox> {
         dispatch!(self => cast::<AnyBox>())
     }
 
+    /// Convert into any box
     #[inline]
     pub fn into_any(self) -> BoxVariant {
         dispatch!(self => cast::<AnyBox>()).into()
     }
 
+    /// Check if is is an anti-box
     #[inline]
     pub fn is_anti(&self) -> bool {
         dispatch!(self => is_anti())
     }
 
+    /// Create a zero
     pub fn zero() -> Self {
         BoxValue::zero().into()
     }
 
+    /// Create an anti-zero
     pub fn anti_zero() -> Self {
         BoxValue::anti_zero().into()
     }
 
+    /// Create a one
     pub fn one() -> Self {
         BoxValue::one().into()
     }
 
+    /// Create an anti-one
     pub fn anti_one() -> Self {
         BoxValue::anti_one().into()
     }
 
+    /// Create an alpha
     pub fn alpha() -> Self {
         BoxValue::alpha().into()
     }
 
+    /// Create an anti-alpha
     pub fn anti_alpha() -> Self {
         BoxValue::anti_alpha().into()
     }
 
+    /// Creat a beta
     pub fn beta(idx: impl Into<Natural>) -> Self {
         BoxValue::beta(idx).into()
     }
 
+    /// Create an anti-beta
     pub fn anti_beta(idx: impl Into<Natural>) -> Self {
         BoxValue::anti_beta(idx).into()
     }
 
+    /// Wrap the box in an empty box
     pub fn wrap<U: BoxType + IntoVariant>(self, mul: impl Into<Natural>) -> Self {
         dispatch!(self => wrap::<U>(mul)).into()
     }
 
+    /// Convert a box into its anti-box
     pub fn into_anti(mut self) -> Self {
         let col = self.get_color(0);
         match col {
@@ -301,6 +314,11 @@ impl BoxVariant {
             (BoxVariant::List(l), BoxVariant::List(r)) => l.is_eq_content(r),
             (_, _) => false,
         }
+    }
+
+    #[inline]
+    pub fn sort_immediate_children(&mut self, order: BoxOrder) {
+        dispatch!(self => sort_immediate_children(order));
     }
 }
 
