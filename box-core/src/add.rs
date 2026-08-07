@@ -1,7 +1,7 @@
 use std::ops::Add;
 
 use malachite::{Natural, base::num::arithmetic::traits::SaturatingSub};
-use rapidhash::{RapidHashMap, RapidHashSet};
+use rapidhash::RapidHashSet;
 
 use crate::{
     AnyBox, BoxContentKey, BoxKind, BoxOrder, BoxType, BoxValue, BoxVariant, Color, MultinumBox,
