@@ -35,8 +35,11 @@ impl BoxValue<PolynumBox> {
             }
         }
 
-        if max_depth == 1 {
+        let len = result.get_length(0);
+        if len == 2 {
             result.set_kind(0, BoxKind::Num);
+        } else if len == 1 {
+            result.set_kind(0, BoxKind::Empty);
         }
 
         result
@@ -155,6 +158,11 @@ mod tests {
         let poly = BoxValue::beta(0_u32);
         let der = poly.derivative(0_u32);
         let exp = BoxValue::from(1);
+        assert_eq!(der, exp.cast());
+
+        let poly = BoxValue::beta(1_u32);
+        let der = poly.derivative(0_u32);
+        let exp = BoxValue::from(0);
         assert_eq!(der, exp.cast());
     }
 }
