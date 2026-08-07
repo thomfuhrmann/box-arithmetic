@@ -1,10 +1,11 @@
 //! Maxel is an extension of matrices into the world of boxes
 
 use crate::{
-    AnyBox, BoxKind, BoxOrder, BoxType, BoxValue, Color, MaxelBox, PixelBox, UnixelBox, VexelBox,
+    AnyBox, BoxContentKey, BoxKind, BoxOrder, BoxType, BoxValue, Color, MaxelBox, PixelBox,
+    UnixelBox, VexelBox,
 };
 use malachite::Natural;
-use rapidhash::RapidHashMap;
+use rapidhash::RapidHashSet;
 
 impl BoxValue<UnixelBox> {
     /// Create a unixel out of a box
@@ -145,8 +146,7 @@ impl From<Vec<BoxValue<PixelBox>>> for BoxValue<MaxelBox> {
 impl BoxValue<MaxelBox> {
     /// Multiply two maxels
     pub fn mul_max(left: Self, right: Self) -> Self {
-        let mut unique_children: RapidHashMap<u64, BoxValue<PixelBox>> =
-            rapidhash::RapidHashMap::default();
+        let mut unique_children: RapidHashSet<BoxContentKey> = RapidHashSet::default();
 
         let left_col = left.get_color(0);
         let right_col = right.get_color(0);
@@ -166,28 +166,25 @@ impl BoxValue<MaxelBox> {
                     left_pix.clone().cast::<PixelBox>(),
                     right_pix.cast::<PixelBox>(),
                 ) {
-                    let struct_hash = pixel.hash_content(unique_children.hasher());
-                    if let Some(other) = unique_children.get_mut(&struct_hash)
-                        && pixel.is_eq_content(other)
-                    {
+                    pixel.set_multiplicity(0, lhs_mul.clone() * rhs_mul);
+                    let key = BoxContentKey(pixel.cast());
+                    if let Some(BoxContentKey(mut other)) = unique_children.take(&key) {
                         let other_col = other.get_color(0);
                         let other_mul = other.get_multiplicity(0);
                         other.set_color(0, col * other_col);
                         other.set_multiplicity(0, other_mul + lhs_mul.clone());
+                        unique_children.insert(BoxContentKey(other));
                     } else {
-                        pixel.set_multiplicity(0, lhs_mul.clone() * rhs_mul);
-                        unique_children.insert(struct_hash, pixel);
+                        unique_children.insert(key);
                     }
                 }
             }
         }
-        for pixel in unique_children.into_values() {
-            let mul = pixel.get_multiplicity(0);
-            if mul == 0 {
-                continue;
+        for key in unique_children {
+            let pixel = key.0;
+            if pixel.get_multiplicity(0) != 0 {
+                result.extend(pixel);
             }
-
-            result.extend(pixel);
         }
         result.sort_immediate_children(BoxOrder::Lex);
         result
@@ -195,8 +192,7 @@ impl BoxValue<MaxelBox> {
 
     /// Multiply a maxel with a vexel
     pub fn mul_max_vex(self, vex: BoxValue<VexelBox>) -> BoxValue<VexelBox> {
-        let mut unique_children: RapidHashMap<u64, BoxValue<UnixelBox>> =
-            rapidhash::RapidHashMap::default();
+        let mut unique_children: RapidHashSet<BoxContentKey> = RapidHashSet::default();
 
         let left_col = self.get_color(0);
         let right_col = vex.get_color(0);
@@ -217,28 +213,25 @@ impl BoxValue<MaxelBox> {
                     .cast::<PixelBox>()
                     .mul_pix_unix(right_unix.cast::<UnixelBox>())
                 {
-                    let struct_hash = unixel.hash_content(unique_children.hasher());
-                    if let Some(other) = unique_children.get_mut(&struct_hash)
-                        && unixel.is_eq_content(other)
-                    {
+                    unixel.set_multiplicity(0, lhs_mul.clone() * rhs_mul);
+                    let key = BoxContentKey(unixel.cast());
+                    if let Some(BoxContentKey(mut other)) = unique_children.take(&key) {
                         let other_col = other.get_color(0);
                         let other_mul = other.get_multiplicity(0);
                         other.set_color(0, col * other_col);
                         other.set_multiplicity(0, other_mul + lhs_mul.clone());
+                        unique_children.insert(BoxContentKey(other));
                     } else {
-                        unixel.set_multiplicity(0, lhs_mul.clone() * rhs_mul);
-                        unique_children.insert(struct_hash, unixel);
+                        unique_children.insert(key);
                     }
                 }
             }
         }
-        for unixel in unique_children.into_values() {
-            let mul = unixel.get_multiplicity(0);
-            if mul == 0 {
-                continue;
+        for key in unique_children {
+            let unixel = key.0;
+            if unixel.get_multiplicity(0) != 0 {
+                result.extend(unixel);
             }
-
-            result.extend(unixel);
         }
         result.sort_immediate_children(BoxOrder::Lex);
         result
@@ -261,14 +254,13 @@ macro_rules! vexel {
             result.multiplicities.push(malachite::Natural::from(1_u32));
             result.lengths.push(1);
 
-            let mut unique_children: rapidhash::RapidHashMap<u64, $crate::BoxValue<$crate::UnixelBox>> = rapidhash::RapidHashMap::default();
+            let mut unique_children: rapidhash::RapidHashSet<$crate::BoxContentKey> = rapidhash::RapidHashSet::default();
             $(
                 let unix = $crate::BoxValue::<$crate::UnixelBox>::unixel(($x).into());
                 let col = unix.get_color(0);
                 let mul = unix.get_multiplicity(0);
-                let struct_hash = unix.hash_content(unique_children.hasher());
-                if let Some(other) = unique_children.get_mut(&struct_hash)
-                    && unix.is_eq_content(other)
+                let key = $crate::BoxContentKey(unix.cast());
+                if let Some($crate::BoxContentKey(mut other)) = unique_children.take(&key)
                 {
                     let other_col = other.get_color(0);
                     let other_mul = other.get_multiplicity(0);
@@ -282,12 +274,14 @@ macro_rules! vexel {
                     } else {
                         other.set_multiplicity(0, other_mul + mul);
                     }
+                    unique_children.insert($crate::BoxContentKey(other));
                 } else {
-                    unique_children.insert(struct_hash, unix);
+                    unique_children.insert(key);
                 }
             )*
 
-            for unixel in unique_children.into_values() {
+            for key in unique_children {
+                let unixel = key.0;
                 let mul = unixel.get_multiplicity(0);
                 if mul == 0 {
                     continue;
@@ -313,14 +307,13 @@ macro_rules! maxel {
             result.multiplicities.push(malachite::Natural::from(1_u32));
             result.lengths.push(1);
 
-            let mut unique_children: rapidhash::RapidHashMap<u64, $crate::BoxValue<$crate::PixelBox>> = rapidhash::RapidHashMap::default();
+            let mut unique_children: rapidhash::RapidHashSet<$crate::BoxContentKey> = rapidhash::RapidHashSet::default();
             $(
                 let pix = $crate::BoxValue::<$crate::PixelBox>::pixel(($x).into(), ($y).into());
                 let col = pix.get_color(0);
                 let mul = pix.get_multiplicity(0);
-                let struct_hash = pix.hash_content(unique_children.hasher());
-                if let Some(other) = unique_children.get_mut(&struct_hash)
-                    && pix.is_eq_content(other)
+                let key = $crate::BoxContentKey(pix.cast());
+                if let Some($crate::BoxContentKey(mut other)) = unique_children.take(&key)
                 {
                     let other_col = other.get_color(0);
                     let other_mul = other.get_multiplicity(0);
@@ -334,12 +327,14 @@ macro_rules! maxel {
                     } else {
                         other.set_multiplicity(0, other_mul + mul);
                     }
+                    unique_children.insert($crate::BoxContentKey(other));
                 } else {
-                    unique_children.insert(struct_hash, pix);
+                    unique_children.insert(key);
                 }
             )*
 
-            for pixel in unique_children.into_values() {
+            for key in unique_children {
+                let pixel = key.0;
                 let mul = pixel.get_multiplicity(0);
                 if mul == 0 {
                     continue;

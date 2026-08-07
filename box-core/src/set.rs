@@ -1,7 +1,7 @@
 use malachite::Natural;
-use rapidhash::{HashMapExt, RapidHashMap};
+use rapidhash::RapidHashSet;
 
-use crate::{AnyBox, BoxKind, BoxOrder, BoxValue, BoxVariant, Color, SetBox};
+use crate::{AnyBox, BoxContentKey, BoxKind, BoxOrder, BoxValue, BoxVariant, Color, SetBox};
 
 impl BoxValue<SetBox> {
     /// Construct an empty set with a given color
@@ -75,36 +75,40 @@ impl BoxValue<SetBox> {
 
     /// Set union of two boxes
     pub fn union(left: Self, right: Self) -> Self {
-        let mut unique_children: RapidHashMap<u64, BoxValue<AnyBox>> = RapidHashMap::new();
+        let mut unique_children: RapidHashSet<BoxContentKey> = RapidHashSet::default();
         let color = left.get_color(0) + right.get_color(0);
 
         for left_child in left {
-            let hash = left_child.hash_content(unique_children.hasher());
-            if let Some(other) = unique_children.get_mut(&hash)
-                && left_child == *other
-            {
-                let left_mul = left_child.get_multiplicity(0);
-                let other_mul = other.get_multiplicity(0);
-                other.set_multiplicity(0, left_mul.max(other_mul));
+            let key = BoxContentKey(left_child);
+
+            if let Some(mut existing) = unique_children.take(&key) {
+                let left_mul = key.0.get_multiplicity(0);
+                let existing_mul = existing.0.get_multiplicity(0);
+                existing.0.set_multiplicity(0, left_mul.max(existing_mul));
+
+                unique_children.insert(existing);
             } else {
-                unique_children.insert(hash, left_child);
+                unique_children.insert(key);
             }
         }
+
         for right_child in right {
-            let hash = right_child.hash_content(unique_children.hasher());
-            if let Some(other) = unique_children.get_mut(&hash)
-                && right_child == *other
-            {
-                let left_mult = right_child.get_multiplicity(0);
-                let other_mult = other.get_multiplicity(0);
-                other.set_multiplicity(0, left_mult.max(other_mult));
+            let key = BoxContentKey(right_child);
+
+            if let Some(mut existing) = unique_children.take(&key) {
+                let left_mul = key.0.get_multiplicity(0);
+                let existing_mul = existing.0.get_multiplicity(0);
+                existing.0.set_multiplicity(0, left_mul.max(existing_mul));
+
+                unique_children.insert(existing);
             } else {
-                unique_children.insert(hash, right_child);
+                unique_children.insert(key);
             }
         }
 
         let mut result = BoxValue::empty_set(color);
-        for (_, child) in unique_children.into_iter() {
+        for key in unique_children {
+            let child = key.0;
             result.extend(child);
         }
         result.sort_immediate_children(BoxOrder::Lex);
@@ -113,32 +117,30 @@ impl BoxValue<SetBox> {
 
     /// Set intersection of two boxes
     pub fn intersection(left: Self, right: Self) -> Self {
-        let mut left_unique: RapidHashMap<u64, BoxValue<AnyBox>> = RapidHashMap::new();
+        let mut left_unique: RapidHashSet<BoxContentKey> = RapidHashSet::default();
         let color = left.get_color(0) + right.get_color(0);
 
         for left_child in left {
-            let hash = left_child.hash_content(left_unique.hasher());
-            left_unique.insert(hash, left_child);
+            left_unique.insert(BoxContentKey(left_child));
         }
 
-        let mut right_unique: RapidHashMap<u64, BoxValue<AnyBox>> = RapidHashMap::new();
+        let mut right_unique: RapidHashSet<BoxContentKey> = RapidHashSet::default();
         for right_child in right {
             // use the same hasher as for the other left map
-            let hash = right_child.hash_content(left_unique.hasher());
-            right_unique.insert(hash, right_child);
+            right_unique.insert(BoxContentKey(right_child));
         }
 
         let mut result = BoxValue::empty_set(color);
 
-        for (left_hash, mut left_child) in left_unique.into_iter() {
-            if let Some(right_child) = right_unique.get_mut(&left_hash)
-                && right_child.is_eq_content(&left_child)
-                && right_child.get_color(0) == left_child.get_color(0)
-            {
-                let right_mult = right_child.get_multiplicity(0);
-                let left_mult = left_child.get_multiplicity(0);
-                left_child.set_multiplicity(0, left_mult.min(right_mult));
-                result.extend(left_child);
+        for key in left_unique {
+            if let Some(BoxContentKey(right_child)) = right_unique.take(&key) {
+                let mut left_child = key.0;
+                if left_child.get_color(0) == right_child.get_color(0) {
+                    let right_mult = right_child.get_multiplicity(0);
+                    let left_mult = left_child.get_multiplicity(0);
+                    left_child.set_multiplicity(0, left_mult.min(right_mult));
+                    result.extend(left_child);
+                }
             }
         }
         result.sort_immediate_children(BoxOrder::Lex);

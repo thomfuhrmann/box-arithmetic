@@ -3,12 +3,12 @@ use strum::EnumDiscriminants;
 
 use std::{
     cmp::Ordering::Equal,
-    hash::{BuildHasher, Hash, Hasher},
+    hash::{Hash, Hasher},
     marker::PhantomData,
     ops::{Add, Mul},
 };
 
-use rapidhash::{RapidHashMap, fast::RandomState};
+use rapidhash::RapidHashSet;
 
 pub mod add;
 pub mod derivative;
@@ -296,8 +296,8 @@ impl BoxVariant {
     }
 
     #[inline]
-    pub fn hash_content(&self, random_state: &RandomState) -> u64 {
-        dispatch!(self => hash_content(random_state))
+    pub fn hash_content<H: Hasher>(&self, hasher: H) -> u64 {
+        dispatch!(self => hash_content(hasher))
     }
 
     #[inline]
@@ -423,6 +423,23 @@ impl<T: BoxType> Hash for BoxValue<T> {
     }
 }
 
+#[derive(Clone)]
+struct BoxContentKey(BoxValue<AnyBox>);
+
+impl PartialEq for BoxContentKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.is_eq_content(&other.0)
+    }
+}
+
+impl Eq for BoxContentKey {}
+
+impl Hash for BoxContentKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash_content(state);
+    }
+}
+
 #[derive(Debug)]
 pub enum BoxOrder {
     Lex,
@@ -474,9 +491,7 @@ impl<T: BoxType> BoxValue<T> {
     }
 
     /// Hash the content of the box
-    fn hash_content(&self, random_state: &RandomState) -> u64 {
-        let mut hasher = random_state.build_hasher();
-
+    fn hash_content<H: Hasher>(&self, mut hasher: H) -> u64 {
         self.kinds.hash(&mut hasher);
         self.colors.get(1..).unwrap_or(&[]).hash(&mut hasher);
         self.multiplicities
@@ -957,13 +972,13 @@ impl<U: BoxType> FromIterator<BoxValue<AnyBox>> for BoxValue<U> {
         result.multiplicities.push(1_u32.into());
         result.lengths.push(1);
 
-        let mut unique_children: RapidHashMap<u64, BoxValue<AnyBox>> = RapidHashMap::default();
+        let mut unique_children: RapidHashSet<BoxContentKey> = RapidHashSet::default();
         for item in iter {
-            let struct_hash = item.hash_content(unique_children.hasher());
-            unique_children.insert(struct_hash, item);
+            unique_children.insert(BoxContentKey(item));
         }
 
-        for raw_box in unique_children.into_values() {
+        for key in unique_children {
+            let raw_box = key.0;
             if raw_box.get_multiplicity(0) != 0 {
                 result.extend(raw_box);
             }

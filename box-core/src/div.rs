@@ -1,10 +1,10 @@
 use std::ops::{Div, Rem};
 
 use malachite::{Natural, base::num::arithmetic::traits::SaturatingSub};
-use rapidhash::RapidHashMap;
+use rapidhash::RapidHashSet;
 
 use crate::{
-    AnyBox, BoxKind, BoxOrder, BoxType, BoxValue, BoxVariant, Color, MultinumBox, NumBox,
+    BoxContentKey, BoxKind, BoxOrder, BoxType, BoxValue, BoxVariant, Color, MultinumBox, NumBox,
     PolynumBox,
 };
 
@@ -39,7 +39,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
     /// Divide two boxes
     fn div(mut self, rhs: BoxValue<R>) -> Self::Output {
         if rhs.get_length(0) < 2 {
-            panic!("Division by zero or invalid divisor: {:?}", rhs);
+            panic!("Division by zero: {:?}", rhs);
         }
 
         let lhs_col = self.get_color(0);
@@ -47,7 +47,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
         let lhs_kind = self.get_kind(0);
         let rhs_kind = rhs.get_kind(0);
 
-        let mut unique_children: RapidHashMap<u64, BoxValue<AnyBox>> = RapidHashMap::default();
+        let mut unique_children = RapidHashSet::default();
 
         let first_divisor_child = rhs.first_child();
         let first_divisor_child_mul = first_divisor_child.get_multiplicity(0);
@@ -78,7 +78,6 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
                 has_match = false;
 
                 let div_grandchild_mul = div_grandchild.get_multiplicity(0);
-                let div_grandchild_hash = div_grandchild.hash_content(unique_children.hasher());
 
                 let factor_kind = factor.get_kind(0);
                 let factor_col = factor.get_color(0);
@@ -86,9 +85,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
                 factor = factor
                     .into_iter()
                     .filter_map(|mut fact| {
-                        if div_grandchild_hash == fact.hash_content(unique_children.hasher())
-                            && div_grandchild.is_eq_content(&fact)
-                        {
+                        if div_grandchild.is_eq_content(&fact) {
                             let dividend_child_mul = fact.get_multiplicity(0);
                             let mut mul = dividend_child_mul / div_grandchild_mul.clone();
                             // reduce by one because exponent is additive not multiplicative
@@ -130,8 +127,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
 
             // subtract
             self = self - factor.clone().wrap::<L>(1_u32) * rhs_cast.clone();
-            let struct_hash = factor.hash_content(unique_children.hasher());
-            unique_children.insert(struct_hash, factor.cast());
+            unique_children.insert(BoxContentKey(factor));
         }
 
         let mut result = BoxValue::new();
@@ -141,7 +137,8 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
         result.lengths.push(1);
 
         let mut max_kind = BoxKind::Empty;
-        for raw_box in unique_children.into_values() {
+        for key in unique_children {
+            let raw_box = key.0;
             max_kind = max_kind.max(raw_box.get_kind(0));
 
             if raw_box.get_multiplicity(0) > 0 {
@@ -178,7 +175,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
         let lhs_col = self.get_color(0);
         let rhs_col = rhs.get_color(0);
 
-        let mut unique_children_rem: RapidHashMap<u64, BoxValue<AnyBox>> = RapidHashMap::default();
+        let mut unique_children_rem = RapidHashSet::default();
 
         let first_divisor_child = rhs.first_child();
         let first_divisor_child_mul = first_divisor_child.get_multiplicity(0);
@@ -195,8 +192,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
                 self = self - first_dividend_child.clone().wrap::<L>(1_u32);
 
                 // add to remainder
-                let struct_hash = first_dividend_child.hash_content(unique_children_rem.hasher());
-                unique_children_rem.insert(struct_hash, first_dividend_child.cast());
+                unique_children_rem.insert(BoxContentKey(first_dividend_child));
                 continue;
             }
 
@@ -213,7 +209,6 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
                 has_match = false;
 
                 let div_grandchild_mul = div_grandchild.get_multiplicity(0);
-                let div_grandchild_hash = div_grandchild.hash_content(unique_children_rem.hasher());
 
                 let factor_kind = factor.get_kind(0);
                 let factor_col = factor.get_color(0);
@@ -221,9 +216,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
                 factor = factor
                     .into_iter()
                     .filter_map(|mut fact| {
-                        if div_grandchild_hash == fact.hash_content(unique_children_rem.hasher())
-                            && div_grandchild.is_eq_content(&fact)
-                        {
+                        if div_grandchild.is_eq_content(&fact) {
                             let dividend_child_mul = fact.get_multiplicity(0);
                             let mut mul = dividend_child_mul / div_grandchild_mul.clone();
                             // reduce by one because exponent is additive not multiplicative
@@ -262,8 +255,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
                 self = self - first_dividend_child.clone().wrap::<L>(1_u32);
 
                 // add to remainder
-                let struct_hash = first_dividend_child.hash_content(unique_children_rem.hasher());
-                unique_children_rem.insert(struct_hash, first_dividend_child.cast());
+                unique_children_rem.insert(BoxContentKey(first_dividend_child));
                 continue;
             }
 
@@ -278,7 +270,8 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
         result.lengths.push(1);
 
         let mut max_kind = BoxKind::Empty;
-        for raw_box in unique_children_rem.into_values() {
+        for key in unique_children_rem {
+            let raw_box = key.0;
             max_kind = max_kind.max(raw_box.get_kind(0));
 
             if raw_box.get_multiplicity(0) > 0 {

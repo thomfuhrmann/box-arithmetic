@@ -1,11 +1,11 @@
 use std::ops::{Mul, Neg};
 
 use malachite::{Natural, base::num::arithmetic::traits::SaturatingSub};
-use rapidhash::RapidHashMap;
+use rapidhash::RapidHashSet;
 
 use crate::{
-    AnyBox, BoxKind, BoxOrder, BoxType, BoxValue, BoxVariant, Color, MultinumBox, NumBox,
-    PolynumBox,
+    AnyBox, BoxContentKey, BoxKind, BoxOrder, BoxType, BoxValue, BoxVariant, Color, MultinumBox,
+    NumBox, PolynumBox,
 };
 
 /// Trait for the output type of box multiplication
@@ -42,7 +42,7 @@ impl<L: BoxType + BoxMul<R>, R: BoxType> Mul<BoxValue<R>> for BoxValue<L> {
     /// Multiply two boxes
     fn mul(self, rhs: BoxValue<R>) -> Self::Output {
         let mut result = BoxValue::new();
-        let mut unique_children: RapidHashMap<u64, BoxValue<AnyBox>> = RapidHashMap::default();
+        let mut unique_children: RapidHashSet<BoxContentKey> = RapidHashSet::default();
 
         let lhs_col = self.get_color(0);
         let rhs_col = rhs.get_color(0);
@@ -60,13 +60,11 @@ impl<L: BoxType + BoxMul<R>, R: BoxType> Mul<BoxValue<R>> for BoxValue<L> {
                 let mul = left_mul * right_mul;
 
                 let mut box_sum = left_child.clone() + right_child;
-
+                box_sum.set_multiplicity(0, mul.clone());
                 let col = box_sum.get_color(0);
-                let struct_hash = box_sum.hash_content(unique_children.hasher());
+                let key = BoxContentKey(box_sum);
 
-                if let Some(other) = unique_children.get_mut(&struct_hash)
-                    && box_sum.is_eq_content(other)
-                {
+                if let Some(BoxContentKey(mut other)) = unique_children.take(&key) {
                     let other_col = other.get_color(0);
                     let other_mul = other.get_multiplicity(0);
                     if col + other_col == Color::Red {
@@ -79,9 +77,9 @@ impl<L: BoxType + BoxMul<R>, R: BoxType> Mul<BoxValue<R>> for BoxValue<L> {
                     } else {
                         other.set_multiplicity(0, other_mul + mul);
                     }
+                    unique_children.insert(BoxContentKey(other));
                 } else {
-                    box_sum.set_multiplicity(0, mul);
-                    unique_children.insert(struct_hash, box_sum);
+                    unique_children.insert(key);
                 }
             }
         }
@@ -91,7 +89,8 @@ impl<L: BoxType + BoxMul<R>, R: BoxType> Mul<BoxValue<R>> for BoxValue<L> {
         result.multiplicities.push(lhs_mul * rhs_mul);
         result.lengths.push(1);
 
-        for raw_box in unique_children.into_values() {
+        for key in unique_children {
+            let raw_box = key.0;
             if raw_box.get_multiplicity(0) != 0 {
                 result.extend(raw_box);
             }

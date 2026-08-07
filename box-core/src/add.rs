@@ -1,11 +1,11 @@
 use std::ops::Add;
 
 use malachite::{Natural, base::num::arithmetic::traits::SaturatingSub};
-use rapidhash::RapidHashMap;
+use rapidhash::{RapidHashMap, RapidHashSet};
 
 use crate::{
-    AnyBox, BoxKind, BoxOrder, BoxType, BoxValue, BoxVariant, Color, MultinumBox, NumBox,
-    PolynumBox,
+    AnyBox, BoxContentKey, BoxKind, BoxOrder, BoxType, BoxValue, BoxVariant, Color, MultinumBox,
+    NumBox, PolynumBox,
 };
 
 /// Trait for the output type of box addition
@@ -72,16 +72,13 @@ impl BoxKind {
 }
 
 impl<T: BoxType> BoxValue<T> {
-    fn add_child_boxes(self, unique_children: &mut RapidHashMap<u64, BoxValue<AnyBox>>) {
+    fn add_child_boxes(self, unique_children: &mut RapidHashSet<BoxContentKey>) {
         for child in self {
             let child_col = child.get_color(0);
             let child_mul = child.get_multiplicity(0);
 
-            let hash = child.hash_content(unique_children.hasher());
-
-            if let Some(other) = unique_children.get_mut(&hash)
-                && child.is_eq_content(other)
-            {
+            let key = BoxContentKey(child);
+            if let Some(BoxContentKey(mut other)) = unique_children.take(&key) {
                 let other_col = other.get_color(0);
                 let other_mul = other.get_multiplicity(0);
 
@@ -95,8 +92,9 @@ impl<T: BoxType> BoxValue<T> {
                 } else {
                     other.set_multiplicity(0, other_mul + child_mul);
                 }
+                unique_children.insert(BoxContentKey(other));
             } else {
-                unique_children.insert(hash, child);
+                unique_children.insert(key);
             }
         }
     }
@@ -118,12 +116,13 @@ impl<L: BoxType + BoxAdd<R>, R: BoxType> Add<BoxValue<R>> for BoxValue<L> {
         result.multiplicities.push(Natural::from(1_u32));
         result.lengths.push(1);
 
-        let mut unique_children: RapidHashMap<u64, BoxValue<AnyBox>> = RapidHashMap::default();
+        let mut unique_children: RapidHashSet<BoxContentKey> = RapidHashSet::default();
         self.add_child_boxes(&mut unique_children);
         rhs.add_child_boxes(&mut unique_children);
 
         let mut max_kind = BoxKind::Empty;
-        for child in unique_children.into_values() {
+        for key in unique_children {
+            let child = key.0;
             if child.get_multiplicity(0) != 0 {
                 max_kind = max_kind.max(child.get_kind(0));
                 result.extend(child);
