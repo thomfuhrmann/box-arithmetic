@@ -1,7 +1,7 @@
 use malachite::Natural;
 use rapidhash::RapidHashSet;
 
-use crate::{AnyBox, BoxContentKey, BoxKind, BoxOrder, BoxValue, BoxVariant, Color, SetBox};
+use crate::{AnyBox, BoxContentKey, BoxKind, BoxValue, BoxVariant, Color, SetBox};
 
 impl BoxValue<SetBox> {
     /// Construct an empty set with a given color
@@ -111,7 +111,7 @@ impl BoxValue<SetBox> {
             let child = key.0;
             result.extend(child);
         }
-        result.sort_immediate_children(BoxOrder::Lex);
+        result.sort_immediate_children();
         result
     }
 
@@ -143,7 +143,7 @@ impl BoxValue<SetBox> {
                 }
             }
         }
-        result.sort_immediate_children(BoxOrder::Lex);
+        result.sort_immediate_children();
         result
     }
 }
@@ -172,16 +172,16 @@ mod tests {
         exp.extend_with_mul(BoxValue::from(2), 2_u32);
         exp.extend_with_mul(BoxValue::from(3), 3_u32);
         exp.extend_with_mul(BoxValue::from(4), 1_u32);
-        exp.sort_immediate_children(crate::BoxOrder::Lex);
+        exp.sort_immediate_children();
 
-        assert_eq!(union, exp.cast());
+        assert_eq!(union, exp);
 
         let intersection = BoxValue::intersection(m, n);
 
         let mut exp = BoxValue::empty_set(crate::Color::Black);
         exp.extend_with_mul(BoxValue::from(1), 4_u32);
         exp.extend_with_mul(BoxValue::from(3), 1_u32);
-        exp.sort_immediate_children(crate::BoxOrder::Lex);
+        exp.sort_immediate_children();
 
         assert_eq!(intersection, exp);
     }

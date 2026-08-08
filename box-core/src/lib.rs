@@ -2,13 +2,11 @@ use malachite::Natural;
 use strum::EnumDiscriminants;
 
 use std::{
-    cmp::Ordering::Equal,
+    cmp::Ordering::{self},
     hash::{Hash, Hasher},
     marker::PhantomData,
-    ops::{Add, Mul},
+    ops::{Add, Mul, Range},
 };
-
-use rapidhash::RapidHashSet;
 
 pub mod add;
 pub mod derivative;
@@ -16,6 +14,7 @@ pub mod display;
 pub mod div;
 pub mod from;
 pub mod function;
+pub mod iter;
 pub mod maxel;
 pub mod mul;
 pub mod parser;
@@ -24,7 +23,7 @@ pub mod store;
 pub mod sub;
 
 /// Trait for types of boxes
-pub trait BoxType: Sized + Clone + std::fmt::Debug {
+pub trait BoxType: Sized + Clone + PartialEq + Eq + std::fmt::Debug {
     const KIND: BoxKind;
 }
 
@@ -205,7 +204,7 @@ impl BoxVariant {
         dispatch!(self => lengths[idx] = len);
     }
 
-    /// Return the underlying box as any box
+    /// Returns the underlying box as any box
     #[inline]
     pub fn into_any_raw(self) -> BoxValue<AnyBox> {
         dispatch!(self => cast::<AnyBox>())
@@ -317,8 +316,8 @@ impl BoxVariant {
     }
 
     #[inline]
-    pub fn sort_immediate_children(&mut self, order: BoxOrder) {
-        dispatch!(self => sort_immediate_children(order));
+    pub fn sort_immediate_children(&mut self) {
+        dispatch!(self => sort_immediate_children());
     }
 }
 
@@ -399,7 +398,7 @@ impl<T: IntoVariant> From<BoxValue<T>> for BoxVariant {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Eq, Clone)]
 pub struct BoxValue<T: BoxType> {
     pub(crate) kinds: Vec<BoxKind>,
     pub(crate) colors: Vec<Color>,
@@ -423,32 +422,28 @@ impl<T: BoxType> Hash for BoxValue<T> {
     }
 }
 
-#[derive(Clone)]
-struct BoxContentKey(BoxValue<AnyBox>);
-
-impl PartialEq for BoxContentKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.is_eq_content(&other.0)
+impl<T: BoxType, U: BoxType> PartialEq<BoxValue<U>> for BoxValue<T> {
+    fn eq(&self, other: &BoxValue<U>) -> bool {
+        self.kinds == other.kinds
+            && self.colors == other.colors
+            && self.multiplicities == other.multiplicities
+            && self.lengths == other.lengths
     }
 }
 
-impl Eq for BoxContentKey {}
-
-impl Hash for BoxContentKey {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.hash_content(state);
+// PartialOrd is necessary here to allow two different type parameters for LHS and RHS respectively
+impl<T: BoxType, U: BoxType> PartialOrd<BoxValue<U>> for BoxValue<T> {
+    fn partial_cmp(&self, other: &BoxValue<U>) -> Option<Ordering> {
+        let len_a = self.get_length(0) as usize;
+        let range_a = 1..len_a;
+        let len_b = other.get_length(0) as usize;
+        let range_b = 1..len_b;
+        Some(self.cmp_ranges(other, range_a, range_b))
     }
-}
-
-#[derive(Debug)]
-pub enum BoxOrder {
-    Lex,
-    GradedLex,
-    GradedRevLex,
 }
 
 impl<T: BoxType> BoxValue<T> {
-    /// Initialize an empty raw box
+    /// Initializes an empty raw box
     pub fn new() -> Self {
         Self {
             kinds: Vec::new(),
@@ -459,7 +454,7 @@ impl<T: BoxType> BoxValue<T> {
         }
     }
 
-    /// Construct a box from the given vectors
+    /// Constructs a box from the given vectors
     pub fn new_with(
         kinds: Vec<BoxKind>,
         colors: Vec<Color>,
@@ -475,22 +470,22 @@ impl<T: BoxType> BoxValue<T> {
         }
     }
 
-    /// Return the kind of box
+    /// Returns the kind of box
     pub fn kind(&self) -> BoxKind {
         T::KIND
     }
 
-    /// Test if the box is an anti-box
+    /// Tests if the box is an anti-box
     pub fn is_anti(&self) -> bool {
         self.get_color(0) == Color::Red
     }
 
-    /// Cast this box to another box type
+    /// Casts this box to another box type
     pub fn cast<U: BoxType>(self) -> BoxValue<U> {
         BoxValue::<U>::new_with(self.kinds, self.colors, self.multiplicities, self.lengths)
     }
 
-    /// Hash the content of the box
+    /// Hashes the content of the box ignoring its outer multiplicity and color
     fn hash_content<H: Hasher>(&self, mut hasher: H) -> u64 {
         self.kinds.hash(&mut hasher);
         self.colors.get(1..).unwrap_or(&[]).hash(&mut hasher);
@@ -503,7 +498,7 @@ impl<T: BoxType> BoxValue<T> {
         hasher.finish()
     }
 
-    /// Compare the content of the two boxes for equality
+    /// Compares the content of the two boxes ignoring their outer multiplicities and colors
     pub fn is_eq_content(&self, other: &Self) -> bool {
         let left_len = self.get_length(0) as usize;
         let right_len = other.get_length(0) as usize;
@@ -518,8 +513,23 @@ impl<T: BoxType> BoxValue<T> {
             && self.lengths[1..] == other.lengths[1..]
     }
 
-    /// Sort the immediate child boxes of this box
-    pub fn sort_immediate_children(&mut self, _order: BoxOrder) {
+    /// Reusable helper function for box comparison
+    fn cmp_ranges<U: BoxType>(
+        &self,
+        other: &BoxValue<U>,
+        range_a: Range<usize>,
+        range_b: Range<usize>,
+    ) -> Ordering {
+        // values at the end carry the most weight
+        // red comes before black
+        self.multiplicities[range_a.clone()]
+            .iter()
+            .cmp(other.multiplicities[range_b.clone()].iter())
+            .then(self.colors[range_a].cmp(&other.colors[range_b]))
+    }
+
+    /// Sorts immediate child boxes
+    pub fn sort_immediate_children(&mut self) {
         if self.lengths.is_empty() {
             return;
         }
@@ -550,25 +560,7 @@ impl<T: BoxType> BoxValue<T> {
             let range_a = start_a..(start_a + len_a);
             let range_b = start_b..(start_b + len_b);
 
-            let kinds_cmp = self.kinds[range_a.clone()].cmp(&self.kinds[range_b.clone()]);
-            if kinds_cmp != Equal {
-                return kinds_cmp;
-            }
-
-            // values at the end carry the most weight
-            let mul_a = &self.multiplicities[range_a.clone()];
-            let mul_b = &self.multiplicities[range_b.clone()];
-            let mul_comp = mul_a.iter().rev().cmp(mul_b.iter().rev());
-            if mul_comp != Equal {
-                return mul_comp;
-            }
-
-            let col_cmp = self.colors[range_a.clone()].cmp(&self.colors[range_b.clone()]);
-            if col_cmp != Equal {
-                return col_cmp;
-            }
-
-            self.lengths[range_a].cmp(&self.lengths[range_b])
+            self.cmp_ranges(self, range_a, range_b)
         });
 
         // load staging buffers
@@ -578,7 +570,7 @@ impl<T: BoxType> BoxValue<T> {
         let mut sorted_lens = Vec::with_capacity(content_len);
         let mut sorted_mults = Vec::with_capacity(content_len);
 
-        for &(start, len) in child_ranges.iter().rev() {
+        for &(start, len) in child_ranges.iter() {
             let range = start..(start + len);
             sorted_kinds.extend_from_slice(&self.kinds[range.clone()]);
             sorted_colors.extend_from_slice(&self.colors[range.clone()]);
@@ -601,7 +593,7 @@ impl<T: BoxType> BoxValue<T> {
         }
     }
 
-    /// Extend the box with another box
+    /// Extends the box with another box
     pub fn extend(&mut self, value: BoxValue<impl BoxType>) {
         if let Some(len) = self.lengths.get_mut(0) {
             *len += value.get_length(0);
@@ -612,13 +604,13 @@ impl<T: BoxType> BoxValue<T> {
         self.lengths.extend(value.lengths);
     }
 
-    /// Extend the box with another box and multiplicity
+    /// Extends the box with another box and outer multiplicity
     pub fn extend_with_mul(&mut self, mut value: BoxValue<impl BoxType>, mul: impl Into<Natural>) {
         value.set_multiplicity(0, mul);
         self.extend(value);
     }
 
-    /// Get the first child by copying the elements into a new box
+    /// Gets the first child by copying its elements into a new box
     pub fn first_child(&self) -> BoxValue<AnyBox> {
         let child_len = self.get_length(1) as usize;
         let range = 1..1 + child_len;
@@ -631,7 +623,33 @@ impl<T: BoxType> BoxValue<T> {
         BoxValue::new_with(kinds, colors, mults, lengths)
     }
 
-    /// Return the k-th kind if it exists
+    /// Returns the last child by copying its elements into a new box
+    pub fn last_child(&self) -> BoxValue<AnyBox> {
+        let box_len = self.lengths[0] as usize;
+
+        let start_idx = 1;
+        let end_idx = box_len;
+
+        let mut curr = start_idx;
+        let mut range = 0..0;
+        while curr < end_idx {
+            let len = self.lengths[curr] as usize;
+            if curr + len == box_len {
+                range = curr..curr + len;
+                break;
+            }
+            curr += len;
+        }
+
+        let kinds = self.kinds[range.clone()].to_vec();
+        let colors = self.colors[range.clone()].to_vec();
+        let lengths = self.lengths[range.clone()].to_vec();
+        let mults = self.multiplicities[range].to_vec();
+
+        BoxValue::new_with(kinds, colors, mults, lengths)
+    }
+
+    /// Returns the k-th kind if it exists
     ///
     /// # Panics
     /// Panics if the index is out of bounds.
@@ -639,7 +657,7 @@ impl<T: BoxType> BoxValue<T> {
         self.kinds[index]
     }
 
-    /// Return the k-th color if it exists
+    /// Returns the k-th color if it exists
     ///
     /// # Panics
     /// Panics if the index is out of bounds.
@@ -647,7 +665,7 @@ impl<T: BoxType> BoxValue<T> {
         self.colors[index]
     }
 
-    /// Return the k-th multiplicity
+    /// Returns the k-th multiplicity
     ///
     /// # Panics
     /// Panics if the index is out of bounds.
@@ -655,7 +673,7 @@ impl<T: BoxType> BoxValue<T> {
         self.multiplicities[index].clone()
     }
 
-    /// Return the k-th length
+    /// Returns the k-th length
     ///
     /// # Panics
     /// Panics if the index is out of bounds.
@@ -918,157 +936,28 @@ impl BoxValue<MultinumBox> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct BoxValueIter<T: BoxType> {
-    raw: BoxValue<T>,
-}
+#[derive(Clone)]
+struct BoxContentKey(BoxValue<AnyBox>);
 
-impl<T: BoxType> BoxValueIter<T> {
-    pub fn new(value: BoxValue<T>) -> Self {
-        let kinds: Vec<_> = value.kinds.into_iter().skip(1).collect();
-        let colors: Vec<_> = value.colors.into_iter().skip(1).collect();
-        let multiplicities: Vec<_> = value.multiplicities.into_iter().skip(1).collect();
-        let lengths: Vec<_> = value.lengths.into_iter().skip(1).collect();
-
-        BoxValueIter {
-            raw: BoxValue::new_with(kinds, colors, multiplicities, lengths),
-        }
+impl PartialEq for BoxContentKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.is_eq_content(&other.0)
     }
 }
 
-impl<T: BoxType> Iterator for BoxValueIter<T> {
-    type Item = BoxValue<AnyBox>;
+impl Eq for BoxContentKey {}
 
-    fn next(&mut self) -> Option<Self::Item> {
-        let child_len = match self.raw.lengths.first() {
-            Some(&len) => len as usize,
-            None => return None,
-        };
-
-        let kinds: Vec<_> = self.raw.kinds.drain(0..child_len).collect();
-        let colors: Vec<_> = self.raw.colors.drain(0..child_len).collect();
-        let multiplicities: Vec<_> = self.raw.multiplicities.drain(0..child_len).collect();
-        let lengths: Vec<_> = self.raw.lengths.drain(0..child_len).collect();
-
-        let child_value = BoxValue::<AnyBox>::new_with(kinds, colors, multiplicities, lengths);
-        Some(child_value)
-    }
-}
-
-impl<T: BoxType> IntoIterator for BoxValue<T> {
-    type Item = BoxValue<AnyBox>;
-    type IntoIter = BoxValueIter<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        BoxValueIter::new(self)
-    }
-}
-
-impl<U: BoxType> FromIterator<BoxValue<AnyBox>> for BoxValue<U> {
-    fn from_iter<T: IntoIterator<Item = BoxValue<AnyBox>>>(iter: T) -> Self {
-        let mut result = BoxValue::new();
-        result.kinds.push(BoxKind::Any);
-        result.colors.push(Color::Black);
-        result.multiplicities.push(1_u32.into());
-        result.lengths.push(1);
-
-        let mut unique_children: RapidHashSet<BoxContentKey> = RapidHashSet::default();
-        for item in iter {
-            unique_children.insert(BoxContentKey(item));
-        }
-
-        for key in unique_children {
-            let raw_box = key.0;
-            if raw_box.get_multiplicity(0) != 0 {
-                result.extend(raw_box);
-            }
-        }
-
-        result.sort_immediate_children(BoxOrder::Lex);
-        result
-    }
-}
-
-impl IntoIterator for BoxVariant {
-    type Item = BoxVariant;
-    type IntoIter = BoxVariantIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let raw_any = self.into_any_raw();
-
-        BoxVariantIter {
-            inner: BoxValueIter::new(raw_any),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct BoxVariantIter {
-    inner: BoxValueIter<AnyBox>,
-}
-
-impl Iterator for BoxVariantIter {
-    type Item = BoxVariant;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(BoxVariant::repack_raw)
-    }
-}
-
-#[derive(Debug, Clone, Copy, Hash)]
-pub struct BoxValueRef<'a> {
-    pub(crate) kinds: &'a [BoxKind],
-    pub(crate) colors: &'a [Color],
-    pub(crate) multiplicities: &'a [Natural],
-    pub(crate) lengths: &'a [u32],
-}
-
-impl<'a, T: BoxType> IntoIterator for &'a BoxValue<T> {
-    type Item = BoxValueRef<'a>;
-    type IntoIter = BoxValueRef<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        BoxValueRef {
-            kinds: &self.kinds[1..],
-            colors: &self.colors[1..],
-            multiplicities: &self.multiplicities[1..],
-            lengths: &self.lengths[1..],
-        }
-    }
-}
-
-impl<'a> Iterator for BoxValueRef<'a> {
-    type Item = BoxValueRef<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.lengths.is_empty() {
-            return None;
-        }
-
-        let current_len = self.lengths[0] as usize;
-
-        let item = BoxValueRef {
-            kinds: &self.kinds[..current_len],
-            colors: &self.colors[..current_len],
-            multiplicities: &self.multiplicities[..current_len],
-            lengths: &self.lengths[..current_len],
-        };
-
-        self.kinds = &self.kinds[current_len..];
-        self.colors = &self.colors[current_len..];
-        self.multiplicities = &self.multiplicities[current_len..];
-        self.lengths = &self.lengths[current_len..];
-
-        Some(item)
+impl Hash for BoxContentKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash_content(state);
     }
 }
 
 /// Color of a box
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Color {
-    Black,
     Red,
+    Black,
 }
 
 impl Color {
@@ -1103,5 +992,52 @@ impl Mul<Color> for Color {
             (Color::Red, Color::Black) => Color::Red,
             (Color::Red, Color::Red) => Color::Black,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_last_child() {
+        let a = BoxValue::one() + BoxValue::alpha();
+        let last = a.last_child();
+        assert_eq!(last, BoxValue::zero());
+    }
+
+    #[test]
+    fn test_ord() {
+        let a = BoxValue::from(0_u32);
+        let b = BoxValue::from(1_u32);
+        assert!(a < b);
+
+        let a = BoxValue::one();
+        let b = BoxValue::alpha();
+        assert!(a < b);
+
+        let a = BoxValue::alpha();
+        let b = 2 * BoxValue::alpha();
+        assert!(a < b);
+
+        let a = BoxValue::alpha();
+        let b = BoxValue::one() + BoxValue::alpha();
+        assert!(a < b);
+
+        let a = BoxValue::alpha();
+        let b = BoxValue::alpha() * BoxValue::alpha();
+        assert!(a < b);
+
+        let a = BoxValue::alpha();
+        let b = BoxValue::beta(1_u32);
+        assert!(a < b);
+
+        let a = BoxValue::beta(1_u32);
+        let b = BoxValue::beta(2_u32);
+        assert!(a < b);
+
+        let a = BoxValue::beta(2_u32);
+        let b = BoxValue::beta(2_u32) * BoxValue::beta(2_u32);
+        assert!(a < b);
     }
 }

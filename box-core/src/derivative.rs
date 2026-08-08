@@ -123,8 +123,7 @@ impl BoxVariant {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::{BoxValue, PolynumBox};
+    use crate::{BoxValue, MultinumBox, PolynumBox};
 
     #[test]
     fn test_der_uni() {
@@ -148,21 +147,21 @@ mod tests {
 
         let der = multi.clone().derivative(1_u32);
         let exp = BoxValue::zero();
-        assert_eq!(der, exp.cast());
+        assert_eq!(der, exp.cast::<MultinumBox>());
 
         let der = multi.derivative(2_u32);
         let der = der.derivative(2_u32);
         let exp = BoxValue::from(6);
-        assert_eq!(der, exp.cast());
+        assert_eq!(der, exp.cast::<MultinumBox>());
 
         let poly = BoxValue::beta(0_u32);
         let der = poly.derivative(0_u32);
         let exp = BoxValue::from(1);
-        assert_eq!(der, exp.cast());
+        assert_eq!(der, exp.cast::<MultinumBox>());
 
         let poly = BoxValue::beta(1_u32);
         let der = poly.derivative(0_u32);
         let exp = BoxValue::from(0);
-        assert_eq!(der, exp.cast());
+        assert_eq!(der, exp.cast::<MultinumBox>());
     }
 }

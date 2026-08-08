@@ -1,8 +1,8 @@
 //! Maxel is an extension of matrices into the world of boxes
 
 use crate::{
-    AnyBox, BoxContentKey, BoxKind, BoxOrder, BoxType, BoxValue, Color, MaxelBox, PixelBox,
-    UnixelBox, VexelBox,
+    AnyBox, BoxContentKey, BoxKind, BoxType, BoxValue, Color, MaxelBox, PixelBox, UnixelBox,
+    VexelBox,
 };
 use malachite::Natural;
 use rapidhash::RapidHashSet;
@@ -186,7 +186,7 @@ impl BoxValue<MaxelBox> {
                 result.extend(pixel);
             }
         }
-        result.sort_immediate_children(BoxOrder::Lex);
+        result.sort_immediate_children();
         result
     }
 
@@ -233,7 +233,7 @@ impl BoxValue<MaxelBox> {
                 result.extend(unixel);
             }
         }
-        result.sort_immediate_children(BoxOrder::Lex);
+        result.sort_immediate_children();
         result
     }
 }
@@ -289,7 +289,7 @@ macro_rules! vexel {
 
                 result.extend(unixel);
             }
-            result.sort_immediate_children($crate::BoxOrder::Lex);
+            result.sort_immediate_children();
             $crate::BoxVariant::from(result)
        }
     };
@@ -342,7 +342,7 @@ macro_rules! maxel {
 
                 result.extend(pixel);
             }
-            result.sort_immediate_children($crate::BoxOrder::Lex);
+            result.sort_immediate_children();
             $crate::BoxVariant::from(result)
         }
     };

@@ -1,4 +1,4 @@
-use crate::{BoxKind, BoxType, BoxValue, BoxVariant, BoxVariantIter, Color, store::BoxStore};
+use crate::{BoxKind, BoxType, BoxValue, BoxVariant, Color, iter::BoxVariantIter, store::BoxStore};
 use colored::Colorize;
 use malachite::Natural;
 use std::{

@@ -4,8 +4,7 @@ use malachite::{Natural, base::num::arithmetic::traits::SaturatingSub};
 use rapidhash::RapidHashSet;
 
 use crate::{
-    BoxContentKey, BoxKind, BoxOrder, BoxType, BoxValue, BoxVariant, Color, MultinumBox, NumBox,
-    PolynumBox,
+    BoxContentKey, BoxKind, BoxType, BoxValue, BoxVariant, Color, MultinumBox, NumBox, PolynumBox,
 };
 
 /// Trait for the output type of box division
@@ -158,7 +157,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
         }
         result.set_kind(0, max_kind);
 
-        result.sort_immediate_children(BoxOrder::Lex);
+        result.sort_immediate_children();
 
         result
     }
@@ -291,7 +290,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
         }
         result.set_kind(0, max_kind);
 
-        result.sort_immediate_children(BoxOrder::Lex);
+        result.sort_immediate_children();
 
         result
     }
