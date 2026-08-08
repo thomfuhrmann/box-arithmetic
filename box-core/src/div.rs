@@ -48,32 +48,32 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
 
         let mut unique_children = RapidHashSet::default();
 
-        let first_divisor_child = rhs.first_child();
-        let first_divisor_child_mul = first_divisor_child.get_multiplicity(0);
+        let last_divisor_child = rhs.last_child();
+        let last_divisor_child_mul = last_divisor_child.get_multiplicity(0);
 
         let rhs_cast = rhs.cast::<L>();
 
         while self.get_length(0) > 1 {
             // safe since length of self > 1
-            let first_dividend_child = self.first_child();
+            let last_dividend_child = self.last_child();
 
-            let first_dividend_child_mul = first_dividend_child.get_multiplicity(0);
-            if first_dividend_child_mul < first_divisor_child_mul {
+            let last_dividend_child_mul = last_dividend_child.get_multiplicity(0);
+            if last_dividend_child_mul < last_divisor_child_mul {
                 // Unmatched term -> drop
-                self = self - first_dividend_child.clone().wrap::<L>(1_u32);
+                self = self - last_dividend_child.clone().wrap::<L>(1_u32);
                 continue;
             }
 
             // balance first level
-            let mul = first_dividend_child_mul / first_divisor_child_mul.clone();
+            let mul = last_dividend_child_mul / last_divisor_child_mul.clone();
 
-            let mut factor = first_dividend_child.clone();
+            let mut factor = last_dividend_child.clone();
             factor.set_multiplicity(0, mul);
-            factor.set_color(0, first_dividend_child.get_color(0));
+            factor.set_color(0, last_dividend_child.get_color(0));
 
             // balance second level
             let mut has_match = true;
-            for div_grandchild in first_divisor_child.clone().into_iter() {
+            for div_grandchild in last_divisor_child.clone().into_iter() {
                 has_match = false;
 
                 let div_grandchild_mul = div_grandchild.get_multiplicity(0);
@@ -120,7 +120,7 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
 
             if !has_match {
                 // Unmatched term -> drop
-                self = self - first_dividend_child.clone().wrap::<L>(1_u32);
+                self = self - last_dividend_child.clone().wrap::<L>(1_u32);
                 continue;
             }
 
@@ -145,15 +145,8 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Div<BoxValue<R>> for BoxValue<L> {
             }
         }
 
-        match max_kind {
-            BoxKind::Empty => {
-                if result.get_length(0) > 1 {
-                    max_kind = BoxKind::Num
-                }
-            }
-            BoxKind::Num => max_kind = BoxKind::Polynum,
-            BoxKind::Polynum => max_kind = BoxKind::Multinum,
-            _ => max_kind = BoxKind::Any,
+        if result.get_length(0) > 1 {
+            max_kind = max_kind.promote();
         }
         result.set_kind(0, max_kind);
 
@@ -176,35 +169,35 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
 
         let mut unique_children_rem = RapidHashSet::default();
 
-        let first_divisor_child = rhs.first_child();
-        let first_divisor_child_mul = first_divisor_child.get_multiplicity(0);
+        let last_divisor_child = rhs.last_child();
+        let last_divisor_child_mul = last_divisor_child.get_multiplicity(0);
 
         let rhs_cast = rhs.cast::<L>();
 
         while self.get_length(0) > 1 {
             // safe since length of self > 1
-            let first_dividend_child = self.first_child();
+            let last_dividend_child = self.last_child();
 
-            let first_dividend_child_mul = first_dividend_child.get_multiplicity(0);
-            if first_dividend_child_mul < first_divisor_child_mul {
+            let last_dividend_child_mul = last_dividend_child.get_multiplicity(0);
+            if last_dividend_child_mul < last_divisor_child_mul {
                 // Unmatched term -> drop / pass to remainder
-                self = self - first_dividend_child.clone().wrap::<L>(1_u32);
+                self = self - last_dividend_child.clone().wrap::<L>(1_u32);
 
                 // add to remainder
-                unique_children_rem.insert(BoxContentKey(first_dividend_child));
+                unique_children_rem.insert(BoxContentKey(last_dividend_child));
                 continue;
             }
 
             // balance first level
-            let mul = first_dividend_child_mul / first_divisor_child_mul.clone();
+            let mul = last_dividend_child_mul / last_divisor_child_mul.clone();
 
-            let mut factor = first_dividend_child.clone();
+            let mut factor = last_dividend_child.clone();
             factor.set_multiplicity(0, mul);
-            factor.set_color(0, first_dividend_child.get_color(0));
+            factor.set_color(0, last_dividend_child.get_color(0));
 
             // balance second level
             let mut has_match = true;
-            for div_grandchild in first_divisor_child.clone().into_iter() {
+            for div_grandchild in last_divisor_child.clone().into_iter() {
                 has_match = false;
 
                 let div_grandchild_mul = div_grandchild.get_multiplicity(0);
@@ -251,10 +244,10 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
 
             if !has_match {
                 // Unmatched term -> drop / pass to remainder
-                self = self - first_dividend_child.clone().wrap::<L>(1_u32);
+                self = self - last_dividend_child.clone().wrap::<L>(1_u32);
 
                 // add to remainder
-                unique_children_rem.insert(BoxContentKey(first_dividend_child));
+                unique_children_rem.insert(BoxContentKey(last_dividend_child));
                 continue;
             }
 
@@ -278,16 +271,10 @@ impl<L: BoxType + BoxDiv<R>, R: BoxType> Rem<BoxValue<R>> for BoxValue<L> {
             }
         }
 
-        match max_kind {
-            BoxKind::Empty => {
-                if result.get_length(0) > 1 {
-                    max_kind = BoxKind::Num
-                }
-            }
-            BoxKind::Num => max_kind = BoxKind::Polynum,
-            BoxKind::Polynum => max_kind = BoxKind::Multinum,
-            _ => max_kind = BoxKind::Any,
+        if result.get_length(0) > 1 {
+            max_kind = max_kind.promote();
         }
+
         result.set_kind(0, max_kind);
 
         result.sort_immediate_children();

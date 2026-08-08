@@ -4,24 +4,24 @@ use rapidhash::RapidHashSet;
 use crate::{AnyBox, BoxContentKey, BoxKind, BoxType, BoxValue, BoxVariant, Color};
 
 #[derive(Debug, Clone)]
-pub struct BoxValueIter<T: BoxType> {
+pub struct IntoIter<T: BoxType> {
     raw: BoxValue<T>,
 }
 
-impl<T: BoxType> BoxValueIter<T> {
+impl<T: BoxType> IntoIter<T> {
     pub fn new(value: BoxValue<T>) -> Self {
         let kinds: Vec<_> = value.kinds.into_iter().skip(1).collect();
         let colors: Vec<_> = value.colors.into_iter().skip(1).collect();
         let multiplicities: Vec<_> = value.multiplicities.into_iter().skip(1).collect();
         let lengths: Vec<_> = value.lengths.into_iter().skip(1).collect();
 
-        BoxValueIter {
+        IntoIter {
             raw: BoxValue::new_with(kinds, colors, multiplicities, lengths),
         }
     }
 }
 
-impl<T: BoxType> Iterator for BoxValueIter<T> {
+impl<T: BoxType> Iterator for IntoIter<T> {
     type Item = BoxValue<AnyBox>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -42,10 +42,10 @@ impl<T: BoxType> Iterator for BoxValueIter<T> {
 
 impl<T: BoxType> IntoIterator for BoxValue<T> {
     type Item = BoxValue<AnyBox>;
-    type IntoIter = BoxValueIter<T>;
+    type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        BoxValueIter::new(self)
+        IntoIter::new(self)
     }
 }
 
@@ -74,6 +74,34 @@ impl<U: BoxType> FromIterator<BoxValue<AnyBox>> for BoxValue<U> {
     }
 }
 
+impl<T: BoxType> DoubleEndedIterator for IntoIter<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.raw.lengths.is_empty() {
+            return None;
+        }
+
+        let len = self.raw.lengths.len();
+        let mut curr_idx = 1;
+        let mut at = 0;
+        while curr_idx < len {
+            let child_len = self.raw.lengths[curr_idx] as usize;
+            curr_idx += child_len;
+            if curr_idx == len {
+                at = curr_idx - child_len;
+                break;
+            }
+        }
+
+        let kinds: Vec<_> = self.raw.kinds.split_off(at);
+        let colors: Vec<_> = self.raw.colors.split_off(at);
+        let multiplicities: Vec<_> = self.raw.multiplicities.split_off(at);
+        let lengths: Vec<_> = self.raw.lengths.split_off(at);
+
+        let child_value = BoxValue::<AnyBox>::new_with(kinds, colors, multiplicities, lengths);
+        Some(child_value)
+    }
+}
+
 impl IntoIterator for BoxVariant {
     type Item = BoxVariant;
     type IntoIter = BoxVariantIter;
@@ -82,14 +110,14 @@ impl IntoIterator for BoxVariant {
         let raw_any = self.into_any_raw();
 
         BoxVariantIter {
-            inner: BoxValueIter::new(raw_any),
+            inner: IntoIter::new(raw_any),
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct BoxVariantIter {
-    inner: BoxValueIter<AnyBox>,
+    inner: IntoIter<AnyBox>,
 }
 
 impl Iterator for BoxVariantIter {
@@ -102,7 +130,7 @@ impl Iterator for BoxVariantIter {
 }
 
 #[derive(Debug, Clone, Copy, Hash)]
-pub struct BoxValueRef<'a> {
+pub struct Iter<'a> {
     pub(crate) kinds: &'a [BoxKind],
     pub(crate) colors: &'a [Color],
     pub(crate) multiplicities: &'a [Natural],
@@ -110,11 +138,11 @@ pub struct BoxValueRef<'a> {
 }
 
 impl<'a, T: BoxType> IntoIterator for &'a BoxValue<T> {
-    type Item = BoxValueRef<'a>;
-    type IntoIter = BoxValueRef<'a>;
+    type Item = Iter<'a>;
+    type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        BoxValueRef {
+        Iter {
             kinds: &self.kinds[1..],
             colors: &self.colors[1..],
             multiplicities: &self.multiplicities[1..],
@@ -123,8 +151,8 @@ impl<'a, T: BoxType> IntoIterator for &'a BoxValue<T> {
     }
 }
 
-impl<'a> Iterator for BoxValueRef<'a> {
-    type Item = BoxValueRef<'a>;
+impl<'a> Iterator for Iter<'a> {
+    type Item = Iter<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.lengths.is_empty() {
@@ -133,7 +161,7 @@ impl<'a> Iterator for BoxValueRef<'a> {
 
         let current_len = self.lengths[0] as usize;
 
-        let item = BoxValueRef {
+        let item = Iter {
             kinds: &self.kinds[..current_len],
             colors: &self.colors[..current_len],
             multiplicities: &self.multiplicities[..current_len],
@@ -146,5 +174,19 @@ impl<'a> Iterator for BoxValueRef<'a> {
         self.lengths = &self.lengths[current_len..];
 
         Some(item)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_double_ended() {
+        let a = BoxValue::one() + BoxValue::alpha() + BoxValue::alpha() * BoxValue::alpha();
+        let mut iter = a.into_iter();
+        while let Some(val) = iter.next_back() {
+            println!("{val}");
+        }
     }
 }

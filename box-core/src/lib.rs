@@ -995,6 +995,18 @@ impl Mul<Color> for Color {
     }
 }
 
+impl BoxKind {
+    /// Promotes the box kind one level up
+    pub fn promote(self) -> Self {
+        match self {
+            BoxKind::Empty => BoxKind::Num,
+            BoxKind::Num => BoxKind::Polynum,
+            BoxKind::Polynum => BoxKind::Multinum,
+            _ => BoxKind::Any,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1003,7 +1015,7 @@ mod tests {
     fn test_last_child() {
         let a = BoxValue::one() + BoxValue::alpha();
         let last = a.last_child();
-        assert_eq!(last, BoxValue::zero());
+        assert_eq!(last, BoxValue::one());
     }
 
     #[test]
