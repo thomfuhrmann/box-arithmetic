@@ -26206,7 +26206,7 @@ img.ProseMirror-separator {
                 key: `e8ta8j`
             }
         ]
-    ]), sb = `/box-arithmetic/assets/wasm_bg-k_E8h3D5.wasm`, cb = async (e = {}, t)=>{
+    ]), sb = `/box-arithmetic/assets/wasm_bg-DEqTy8rB.wasm`, cb = async (e = {}, t)=>{
         let n;
         if (t.startsWith(`data:`)) {
             let r = t.replace(/^data:.*?base64,/, ``), i;
@@ -33472,7 +33472,7 @@ img.ProseMirror-separator {
                                     className: `mt-0.5 size-4 shrink-0 text-muted-foreground`
                                 }),
                                 (0, J.jsx)(`span`, {
-                                    children: `Supported operators: +, -, *, /, %, ∪, ∩.`
+                                    children: `Supported operators: +, -, *, /, %, ∧, ∪, ∩.`
                                 })
                             ]
                         })
@@ -33896,6 +33896,13 @@ img.ProseMirror-separator {
                             onClick: ()=>t(`_`),
                             title: `subscript`,
                             children: (0, J.jsx)(ob, {})
+                        }),
+                        (0, J.jsx)(WA, {
+                            variant: `outline`,
+                            size: `default`,
+                            onClick: ()=>t(` ∧ `),
+                            title: `caret`,
+                            children: `∧`
                         })
                     ]
                 })
