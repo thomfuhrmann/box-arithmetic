@@ -28424,7 +28424,7 @@ img.ProseMirror-separator {
         let c = s - o + i * 2, l = (a.height + 1) * 50 + 20, u = ZS(`svg`).attr(`width`, c).attr(`height`, l).style(`overflow`, `auto`), d = u.append(`g`).attr(`font-family`, `sans-serif`).attr(`font-size`, 10).attr(`transform`, `translate(${i - o}, 10)`), f = VE().x((e)=>e.x ?? 0).y((e)=>e.y ?? 0);
         d.append(`g`).attr(`fill`, `none`).attr(`stroke`, `#555`).attr(`stroke-opacity`, .4).attr(`stroke-width`, 1.5).selectAll(`path`).data(a.links()).join(`path`).attr(`d`, f);
         let p = d.append(`g`).attr(`stroke-linejoin`, `round`).attr(`stroke-width`, 3).selectAll(`g`).data(a.descendants()).join(`g`).attr(`transform`, (e)=>`translate(${e.x},${e.y})`);
-        p.append(`circle`).attr(`fill`, (e)=>r(e) ? `red` : e.children ? `#555` : `#999`).attr(`r`, 2.5), p.append(`text`).attr(`fill`, (e)=>r(e) ? `red` : null).attr(`stroke`, `white`).attr(`paint-order`, `stroke`).attr(`dy`, `0.31em`).attr(`x`, ()=>-6).attr(`y`, ()=>6).attr(`text-anchor`, `middle`).text(n);
+        p.append(`circle`).attr(`fill`, (e)=>r(e) ? `red` : e.children ? `#555` : `#999`).attr(`r`, 2.5), p.append(`text`).attr(`stroke`, `white`).attr(`paint-order`, `stroke`).attr(`dy`, `0.31em`).attr(`x`, ()=>-6).attr(`y`, ()=>6).attr(`text-anchor`, `middle`).text(n);
         let m = u.node();
         m && e.replaceChildren(m);
     }
