@@ -26206,7 +26206,7 @@ img.ProseMirror-separator {
                 key: `e8ta8j`
             }
         ]
-    ]), sb = `/box-arithmetic/assets/wasm_bg-E_9ty7c8.wasm`, cb = async (e = {}, t)=>{
+    ]), sb = `/box-arithmetic/assets/wasm_bg-k_E8h3D5.wasm`, cb = async (e = {}, t)=>{
         let n;
         if (t.startsWith(`data:`)) {
             let r = t.replace(/^data:.*?base64,/, ``), i;
