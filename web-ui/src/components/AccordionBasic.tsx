@@ -107,11 +107,19 @@ const items = [
 							within boxes.
 						</span>
 					</li>
+					<li className="flex gap-2">
+						<ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+						<span>
+							<strong>Tree format:</strong> Expressions are displayed as rooted
+							trees. Multiplicities appear as left sub-indices, while box colors
+							are represented by red or black nodes.
+						</span>
+					</li>
 				</ul>
-				Both formats are available in expanded and compact forms. In the
-				expanded form, every nested object is written out explicitly each time
-				it occurs. In the compact form, repeated objects are represented by a
-				subscript indicating their multiplicity.
+				Mixed and box formats are available in expanded and compact forms. In
+				the expanded form, every nested object is written out explicitly each
+				time it occurs. In the compact form, repeated objects are represented by
+				a subscript indicating their multiplicity.
 				<ul className="grid gap-2 py-2 text-sm">
 					<li className="flex gap-2">
 						<ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />

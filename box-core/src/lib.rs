@@ -1,4 +1,5 @@
 use malachite::Natural;
+use serde::{Deserialize, Serialize};
 use strum::EnumDiscriminants;
 
 use std::{
@@ -8,21 +9,36 @@ use std::{
     ops::{Add, Mul, Range},
 };
 
+/// Addition of boxes
 pub mod add;
+/// Derivative of boxes
 pub mod derivative;
+/// Display for boxes
 pub mod display;
+/// Division of boxes
 pub mod div;
+/// Conversions from numbers to boxes
 pub mod from;
+/// Functions as boxes
 pub mod function;
+/// Iterators for boxes
 pub mod iter;
+/// Maxels
 pub mod maxel;
+/// Multiplication for boxes
 pub mod mul;
+/// Parser for box arithemtic
 pub mod parser;
+/// Sets as boxes
 pub mod set;
+/// A store for stateful box arithmetic
 pub mod store;
+/// Subtraction of boxes
 pub mod sub;
+/// Tree representation of boxes
+pub mod tree;
 
-/// Trait for types of boxes
+/// Trait for different types of boxes
 pub trait BoxType: Sized + Clone + PartialEq + Eq + std::fmt::Debug {
     const KIND: BoxKind;
 }
@@ -522,10 +538,12 @@ impl<T: BoxType> BoxValue<T> {
     ) -> Ordering {
         // values at the end carry the most weight
         // red comes before black
-        self.multiplicities[range_a.clone()]
-            .iter()
-            .cmp(other.multiplicities[range_b.clone()].iter())
-            .then(self.colors[range_a].cmp(&other.colors[range_b]))
+        range_a.len().cmp(&range_b.len()).then(
+            self.multiplicities[range_a.clone()]
+                .iter()
+                .cmp(other.multiplicities[range_b.clone()].iter())
+                .then(self.colors[range_a].cmp(&other.colors[range_b])),
+        )
     }
 
     /// Sorts immediate child boxes
@@ -954,7 +972,7 @@ impl Hash for BoxContentKey {
 }
 
 /// Color of a box
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 pub enum Color {
     Red,
     Black,
@@ -1034,6 +1052,8 @@ mod tests {
 
         let a = BoxValue::alpha();
         let b = BoxValue::one() + BoxValue::alpha();
+        println!("{a}");
+        println!("{b}");
         assert!(a < b);
 
         let a = BoxValue::alpha();

@@ -16,4 +16,5 @@ colored = { workspace = true }
 logos = { workspace = true }
 malachite = { workspace = true }
 rapidhash = { workspace = true }
+serde = { workspace = true }
 strum = { workspace = true }

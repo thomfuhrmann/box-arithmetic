@@ -13,8 +13,9 @@ import { Tiptap, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import parse from "html-react-parser";
 import { CornerDownLeftIcon, GitBranchIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BoxCalculator } from "wasm";
+import { graph, type TreeNode } from "../lib/tree";
 import { AccordionBasic } from "./AccordionBasic";
 import Toolbar from "./Toolbar";
 import { Button } from "./ui/button";
@@ -37,6 +38,7 @@ interface EvalOutput {
 	mixed_mul: string;
 	boxed: string;
 	boxed_mul: string;
+	tree: TreeNode;
 }
 
 const MathSymbols = Extension.create({
@@ -139,6 +141,7 @@ const ShiftEnterExtractor = Extension.create<
 						mixed_mul: formatRedTags(outputExpr.mixed_mul),
 						boxed: formatRedTags(outputExpr.boxed),
 						boxed_mul: formatRedTags(outputExpr.boxed_mul),
+						tree: outputExpr.tree,
 					};
 
 					if (this.options.onEvaluate) {
@@ -279,6 +282,7 @@ function Editor() {
 	const [evalResult, setEvalResult] = useState<EvalOutput | null>(null);
 	const [errorResult, setErrorResult] = useState<string | null>(null);
 	const calculator = useMemo(() => new BoxCalculator(), []);
+	const graphRef = useRef<HTMLDivElement>(null);
 
 	const editor = useEditor({
 		extensions: [
@@ -311,6 +315,12 @@ function Editor() {
 			},
 		},
 	});
+
+	useEffect(() => {
+		if (!graphRef.current || !evalResult) return;
+
+		graph(graphRef.current, evalResult.tree);
+	}, [evalResult]);
 
 	if (!editor) return null;
 
@@ -453,6 +463,18 @@ function Editor() {
 									<div className="overflow-x-auto pb-4">
 										{parse(evalResult.boxed_mul)}
 									</div>
+								</div>
+							</>
+						)}
+
+						{evalResult.tree && (
+							<>
+								<Separator />
+								<div>
+									<h4 className="mb-2 text-sm font-medium">
+										Tree format (with multiplicities)
+									</h4>
+									<div className="overflow-x-auto pb-4" ref={graphRef}></div>
 								</div>
 							</>
 						)}

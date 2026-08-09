@@ -2,6 +2,7 @@ use box_arithmetic::BoxValue;
 use box_arithmetic::display::{BoxDisplay, OutputFormat};
 use box_arithmetic::parser::{Token, parser};
 use box_arithmetic::store::BoxStore;
+use box_arithmetic::tree::TreeNode;
 use chumsky::prelude::*;
 use logos::Logos;
 use serde::{Deserialize, Serialize};
@@ -19,15 +20,23 @@ pub struct Value {
     mixed_mul: String,
     boxed: String,
     boxed_mul: String,
+    tree: TreeNode,
 }
 
 impl Value {
-    pub fn new(mixed: String, mixed_mul: String, boxed: String, boxed_mul: String) -> Self {
+    pub fn new(
+        mixed: String,
+        mixed_mul: String,
+        boxed: String,
+        boxed_mul: String,
+        tree: TreeNode,
+    ) -> Self {
         Self {
             mixed,
             mixed_mul,
             boxed,
             boxed_mul,
+            tree,
         }
     }
 }
@@ -73,6 +82,8 @@ impl BoxCalculator {
         // evaluate the AST to get the result
         let val = ast.eval(&self.store);
 
+        let tree = TreeNode::from(val.clone());
+
         let mut disp = BoxDisplay::from_variant(val, &self.store);
         let mixed = format!("{}", disp);
         let mixed_mul = format!("{:#}", disp);
@@ -81,7 +92,7 @@ impl BoxCalculator {
         let boxed = format!("{}", disp);
         let boxe_mul = format!("{:#}", disp);
 
-        let val = Value::new(mixed, mixed_mul, boxed, boxe_mul);
+        let val = Value::new(mixed, mixed_mul, boxed, boxe_mul, tree);
         serde_wasm_bindgen::to_value(&val).map_err(|e| e.to_string().into())
     }
 }

@@ -16,7 +16,7 @@ license = "MIT"
 chumsky = "0.13.0"
 colored = "3.1.1"
 logos = "0.16.1"
-malachite = "0.9.1"
+malachite = { version = "0.10.0", features = ["enable_serde"] }
 rapidhash = "4.4.1"
 strum = { version = "0.28.0", features = ["derive"] }
 serde = { version = "1.0.229", features = ["derive"] }
