@@ -275,14 +275,19 @@ fn write_betas(
     };
 
     if mul > 1 {
-        write!(f, "{op}{mul}")?;
+        write!(f, "{op}{mul}*")?;
     } else {
         write!(f, "{op}")?;
     };
 
+    let mut first_child = true;
     for child in poly {
         let exp = child.value.get_multiplicity(0);
         let idx = child.value.get_multiplicity(1);
+        if !first_child {
+            write!(f, "*")?;
+        }
+        first_child = false;
         write!(f, "{name}")?;
         write!(f, "{}", to_subscript(idx))?;
         if exp > 1 {
