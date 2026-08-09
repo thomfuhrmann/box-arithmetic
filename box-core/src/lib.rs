@@ -11,6 +11,8 @@ use std::{
 
 /// Addition of boxes
 pub mod add;
+/// Caret operation for boxes
+pub mod caret;
 /// Derivative of boxes
 pub mod derivative;
 /// Display for boxes
@@ -524,9 +526,9 @@ impl<T: BoxType> BoxValue<T> {
         }
 
         self.kinds == other.kinds
+            && self.lengths == other.lengths
             && self.colors[1..] == other.colors[1..]
             && self.multiplicities[1..] == other.multiplicities[1..]
-            && self.lengths[1..] == other.lengths[1..]
     }
 
     /// Reusable helper function for box comparison

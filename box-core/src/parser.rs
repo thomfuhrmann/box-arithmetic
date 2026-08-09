@@ -1,4 +1,4 @@
-use crate::{AnyBox, BoxKind, BoxValue, BoxVariant, Color, NumBox, store::BoxStore};
+use crate::{AnyBox, BoxKind, BoxValue, BoxVariant, Color, NumBox, caret::Caret, store::BoxStore};
 
 use chumsky::{prelude::*, util::MaybeRef};
 use logos::{Lexer, Logos};
@@ -82,6 +82,8 @@ pub enum Token {
     #[token("%")]
     Remainder,
     #[token("^")]
+    Exponentiation,
+    #[token("∧")]
     Caret,
     #[token("∩")]
     Intersection,
@@ -140,7 +142,8 @@ pub enum Expr {
     Mul(Box<Expr>, Box<Expr>),
     Div(Box<Expr>, Box<Expr>),
     Rem(Box<Expr>, Box<Expr>),
-    Caret(Box<Expr>, Natural),
+    Exponentiation(Box<Expr>, Natural),
+    Caret(Box<Expr>, Box<Expr>),
     Intersection(Box<Expr>, Box<Expr>),
     Union(Box<Expr>, Box<Expr>),
     Box(Vec<Expr>),
@@ -483,18 +486,29 @@ pub fn parser<'src>() -> Boxed<'src, 'src, &'src [Token], Expr, extra::Err<Simpl
             })
             .boxed();
 
-        let caret = atom
+        let super_scr = atom
             .clone()
             .then(
-                just(Token::Caret)
+                just(Token::Exponentiation)
                     .ignore_then(select! { Token::Num(n) => n })
                     .or(superscript())
                     .or_not(),
             )
             .map(|(base, exp)| match exp {
-                Some(n) => Expr::Caret(Box::new(base), n),
+                Some(n) => Expr::Exponentiation(Box::new(base), n),
                 None => base,
             });
+
+        let caret = super_scr
+            .clone()
+            .foldl(
+                just(Token::Caret).then(super_scr).repeated(),
+                |lhs, (op, rhs)| match op {
+                    Token::Caret => Expr::Caret(Box::new(lhs), Box::new(rhs)),
+                    _ => unreachable!(),
+                },
+            )
+            .boxed();
 
         let prod = caret
             .clone()
@@ -581,7 +595,7 @@ impl Expr {
             }
             Expr::Div(lhs, rhs) => lhs.eval(store) / rhs.eval(store),
             Expr::Rem(lhs, rhs) => lhs.eval(store) % rhs.eval(store),
-            Expr::Caret(v, n) => {
+            Expr::Exponentiation(v, n) => {
                 let variant = v.eval(store);
                 if *n == 0 {
                     return BoxVariant::Num(BoxValue::one());
@@ -599,6 +613,7 @@ impl Expr {
 
                 acc
             }
+            Expr::Caret(lhs, rhs) => lhs.eval(store).caret(rhs.eval(store)),
             Expr::Intersection(lhs, rhs) => {
                 BoxVariant::intersection(lhs.eval(store), rhs.eval(store))
             }
@@ -844,7 +859,7 @@ mod tests {
         let exp = BoxVariant::anti_beta(2_u32) + BoxVariant::from(1_u32);
         assert_eq!(val, exp);
 
-        let input = "β₂²";
+        let input = "β₂^2";
         let val = eval_input(input).expect("eval_input failed");
         let exp = BoxVariant::beta(2_u32) * BoxVariant::beta(2_u32);
         assert_eq!(val, exp);
@@ -857,7 +872,7 @@ mod tests {
         let exp = BoxVariant::alpha();
         assert_eq!(val, exp);
 
-        let input = "(β₁*β₂^2)/β₂";
+        let input = "(β₁*β₂²)/β₂";
         let val = eval_input(input).expect("eval_input failed");
         let exp = BoxVariant::beta(1_u32) * BoxVariant::beta(2_u32);
         assert_eq!(val, exp);
@@ -868,6 +883,14 @@ mod tests {
         let input = "(1 + α²) % α";
         let val = eval_input(input).expect("eval_input failed");
         let exp = BoxVariant::one();
+        assert_eq!(val, exp);
+    }
+
+    #[test]
+    fn test_caret() {
+        let input = "α² ∧ α³";
+        let val = eval_input(input).expect("eval_input failed");
+        let exp = BoxVariant::alpha().pow(6);
         assert_eq!(val, exp);
     }
 
@@ -907,17 +930,17 @@ mod tests {
         let exp = BoxVariant::Polynum(BoxValue::from(1_u32).cast());
         assert_eq!(val, exp);
 
-        let input = "der(1+α^2)";
+        let input = "der(1+α²)";
         let val = eval_input(input).expect("eva_input failed");
         let exp = 2 * BoxVariant::alpha();
         assert_eq!(val, exp);
 
-        let input = "der(1+β,1)";
+        let input = "der(1+β₁,1)";
         let val = eval_input(input).expect("eva_input failed");
         let exp = BoxVariant::Multinum(BoxValue::from(1_u32).cast());
         assert_eq!(val, exp);
 
-        let input = "der(1+β^2,1)";
+        let input = "der(1+β₁²,1)";
         let val = eval_input(input).expect("eva_input failed");
         let exp = 2 * BoxVariant::beta(1_u32);
         assert_eq!(val, exp);
@@ -929,7 +952,7 @@ mod tests {
         let alpha = BoxValue::alpha();
         store.store_with_name("alpha", alpha);
 
-        let input = "-2 + 3 - 2*alpha + 5*alpha^2";
+        let input = "-2 + 3 - 2*alpha + 5*alpha²";
         let lexer = Token::lexer(input);
         let tokens = collect_tokens(lexer).unwrap();
 

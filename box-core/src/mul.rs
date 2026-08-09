@@ -101,6 +101,30 @@ impl<L: BoxType + BoxMul<R>, R: BoxType> Mul<BoxValue<R>> for BoxValue<L> {
     }
 }
 
+impl<T: BoxType> BoxValue<T> {
+    pub fn pow(self, exp: u32) -> Self {
+        (1..exp).fold(self.clone(), |acc, _| self.clone() * acc)
+    }
+}
+
+impl BoxVariant {
+    #[inline]
+    pub fn pow(self, exp: u32) -> Self {
+        match self {
+            BoxVariant::Any(l) => BoxVariant::repack_raw(l.pow(exp)),
+            BoxVariant::Empty(l) => BoxVariant::repack_raw(l.pow(exp)),
+            BoxVariant::Num(l) => BoxVariant::repack_raw(l.pow(exp)),
+            BoxVariant::Polynum(l) => BoxVariant::repack_raw(l.pow(exp)),
+            BoxVariant::Multinum(l) => BoxVariant::repack_raw(l.pow(exp)),
+            BoxVariant::Vexel(l) => BoxVariant::repack_raw(l.pow(exp)),
+            BoxVariant::Maxel(l) => BoxVariant::repack_raw(l.pow(exp)),
+            BoxVariant::Set(l) => BoxVariant::repack_raw(l.pow(exp)),
+            BoxVariant::List(l) => BoxVariant::repack_raw(l.pow(exp)),
+            _ => panic!("pow is not implemented for this box type"),
+        }
+    }
+}
+
 impl<L: BoxType + BoxMul<R>, R: BoxType> Mul<&BoxValue<R>> for &BoxValue<L> {
     type Output = BoxValue<L::Output>;
 
@@ -404,5 +428,12 @@ mod tests {
         let prod = alpha * BoxValue::alpha();
         let exp = BoxValue::alpha();
         assert_eq!(prod, exp);
+    }
+
+    #[test]
+    fn test_pow() {
+        let a = BoxValue::alpha().pow(2);
+        let exp = BoxValue::alpha() * BoxValue::alpha();
+        assert_eq!(a, exp);
     }
 }

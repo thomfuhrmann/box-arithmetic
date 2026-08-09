@@ -262,6 +262,14 @@ function Toolbar() {
 				>
 					<Subscript></Subscript>
 				</Button>
+				<Button
+					variant="outline"
+					size="default"
+					onClick={() => insertSymbol(" ∧ ")}
+					title="caret"
+				>
+					{"∧"}
+				</Button>
 			</ButtonGroup>
 		</div>
 	);

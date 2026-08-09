@@ -8,6 +8,29 @@ use crate::{
     PolynumBox,
 };
 
+impl Add for BoxKind {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (BoxKind::Empty, r) => r,
+            (l, BoxKind::Empty) => l,
+            (BoxKind::Num, BoxKind::Num) => BoxKind::Num,
+            (BoxKind::Num, BoxKind::Polynum) => BoxKind::Polynum,
+            (BoxKind::Polynum, BoxKind::Num) => BoxKind::Polynum,
+            (BoxKind::Polynum, BoxKind::Polynum) => BoxKind::Polynum,
+            (BoxKind::Num, BoxKind::Multinum) => BoxKind::Multinum,
+            (BoxKind::Multinum, BoxKind::Num) => BoxKind::Multinum,
+            (BoxKind::Polynum, BoxKind::Multinum) => BoxKind::Multinum,
+            (BoxKind::Multinum, BoxKind::Polynum) => BoxKind::Multinum,
+            (BoxKind::Multinum, BoxKind::Multinum) => BoxKind::Multinum,
+            (BoxKind::Vexel, BoxKind::Vexel) => BoxKind::Vexel,
+            (BoxKind::Maxel, BoxKind::Maxel) => BoxKind::Maxel,
+            (_, _) => BoxKind::Any,
+        }
+    }
+}
+
 /// Trait for the output type of box addition
 pub trait BoxAdd<Rhs = Self> {
     type Output: BoxType;
@@ -35,41 +58,6 @@ impl_box_add!(PolynumBox, MultinumBox => MultinumBox);
 impl_box_add!(NumBox, AnyBox => AnyBox);
 impl_box_add!(PolynumBox, AnyBox => AnyBox);
 impl_box_add!(MultinumBox, AnyBox => AnyBox);
-
-impl Add for BoxKind {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (BoxKind::Empty, r) => r,
-            (l, BoxKind::Empty) => l,
-            (BoxKind::Num, BoxKind::Num) => BoxKind::Num,
-            (BoxKind::Num, BoxKind::Polynum) => BoxKind::Polynum,
-            (BoxKind::Polynum, BoxKind::Num) => BoxKind::Polynum,
-            (BoxKind::Polynum, BoxKind::Polynum) => BoxKind::Polynum,
-            (BoxKind::Num, BoxKind::Multinum) => BoxKind::Multinum,
-            (BoxKind::Multinum, BoxKind::Num) => BoxKind::Multinum,
-            (BoxKind::Polynum, BoxKind::Multinum) => BoxKind::Multinum,
-            (BoxKind::Multinum, BoxKind::Polynum) => BoxKind::Multinum,
-            (BoxKind::Multinum, BoxKind::Multinum) => BoxKind::Multinum,
-            (BoxKind::Vexel, BoxKind::Vexel) => BoxKind::Vexel,
-            (BoxKind::Maxel, BoxKind::Maxel) => BoxKind::Maxel,
-            (_, _) => BoxKind::Any,
-        }
-    }
-}
-
-impl BoxKind {
-    pub fn get_kind_from_depth(depth: u32) -> BoxKind {
-        match depth {
-            1 => BoxKind::Empty,
-            2 => BoxKind::Num,
-            3 => BoxKind::Polynum,
-            4 => BoxKind::Multinum,
-            _ => BoxKind::Any,
-        }
-    }
-}
 
 impl<T: BoxType> BoxValue<T> {
     fn add_child_boxes(self, unique_children: &mut RapidHashSet<BoxContentKey>) {
